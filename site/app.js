@@ -3,7 +3,8 @@ const REGS = ["Growth", "Inflation", "Slowdown"];
 const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 const C = {
   text: css("--text"), muted: css("--muted"), faint: css("--faint"), border: css("--border"),
-  card: css("--card"), neg: css("--neg"), band: parseFloat(css("--band")) || 0.13,
+  card: css("--card"), neg: css("--neg"), grid: css("--grid"), band: parseFloat(css("--band")) || 0.2,
+  probfill: parseFloat(css("--probfill")) || 0.5,
   reg: [css("--growth"), css("--inflation"), css("--slowdown")],
   assets: [css("--a-spx"), css("--a-ty"), css("--a-gold"), css("--a-cash")]
 };
@@ -20,7 +21,6 @@ const MACRO = {
 
 const $ = id => document.getElementById(id);
 const alpha = (hex, a) => { const n = parseInt(hex.slice(1), 16); return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${a})`; };
-const THEMES = { midnight: "Midnight", paper: "Paper", navy: "Navy", terminal: "Terminal", sand: "Sand" };
 const pct = (x, d = 1) => x == null ? "—" : (x * 100).toFixed(d).replace("-", "−") + "%";
 const signed = (x, d = 2) => x == null ? "—" : (x >= 0 ? "+" : "−") + Math.abs(x).toFixed(d);
 const fmtDate = s => new Date(s + "T00:00:00Z").toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
@@ -35,7 +35,7 @@ const el = (tag, attrs = {}, ...kids) => {
 
 let D = null;
 const charts = {};
-const state = { perf: "Max", ind: "5Y", asset: "5Y", macro: null, openAsset: null };
+const state = { perf: "1Y", ind: "1Y", asset: "1Y", macro: null, openAsset: null };
 
 Chart.defaults.color = C.muted;
 Chart.defaults.font.family = "Inter, system-ui, sans-serif";
@@ -96,8 +96,8 @@ function baseOpts({ log = false, bands = true, yfmt = v => v, stacked = false, y
       }
     },
     scales: {
-      x: { type: "time", time: { tooltipFormat: "d MMM yyyy" }, grid: { display: false }, ticks: { maxTicksLimit: 5, maxRotation: 0 } },
-      y: { type: log ? "logarithmic" : "linear", stacked, min: ymin, max: ymax, grid: { color: C.border },
+      x: { type: "time", time: { tooltipFormat: "d MMM yyyy" }, grid: { color: C.grid }, ticks: { maxTicksLimit: 5, maxRotation: 0 } },
+      y: { type: log ? "logarithmic" : "linear", stacked, min: ymin, max: ymax, grid: { color: C.grid },
            ticks: { maxTicksLimit: 5, callback: v => yfmt(v) } }
     }
   };
@@ -268,9 +268,9 @@ function renderIndicators() {
   const j0 = firstIndex(W.t, startFor(state.ind, p.asof));
   const wt = W.t.slice(j0);
   draw("probChart", { type: "line", data: { datasets: [
-    line("Growth", pts(wt, W.G.slice(j0)), C.reg[0], { fill: "origin", borderWidth: 0, stack: "p" }),
-    line("Inflation", pts(wt, W.I.slice(j0)), C.reg[1], { fill: "-1", borderWidth: 0, stack: "p" }),
-    line("Slowdown", pts(wt, W.S.slice(j0)), C.reg[2], { fill: "-1", borderWidth: 0, stack: "p" })
+    line("Growth", pts(wt, W.G.slice(j0)), C.reg[0], { fill: "origin", borderWidth: 0, backgroundColor: alpha(C.reg[0], C.probfill), stack: "p" }),
+    line("Inflation", pts(wt, W.I.slice(j0)), C.reg[1], { fill: "-1", borderWidth: 0, backgroundColor: alpha(C.reg[1], C.probfill), stack: "p" }),
+    line("Slowdown", pts(wt, W.S.slice(j0)), C.reg[2], { fill: "-1", borderWidth: 0, backgroundColor: alpha(C.reg[2], C.probfill), stack: "p" })
   ] }, options: baseOpts({ bands: false, stacked: true, ymin: 0, ymax: 1, yfmt: v => pct(+v, 0) }) });
   renderMacro();
 }
@@ -349,23 +349,16 @@ async function load() {
   renderIndicators();
   renderAssets();
 }
-function renderThemes() {
-  const box = $("themes"), cur = document.documentElement.getAttribute("data-theme") || "midnight";
-  for (const [k, name] of Object.entries(THEMES)) {
-    const chip = el("span", { class: "chip" });
-    const b = el("button", { class: "themeBtn" + (k === cur ? " on" : ""), type: "button", "aria-pressed": String(k === cur) }, chip, name);
-    b.addEventListener("click", () => { try { localStorage.setItem("theme", k); } catch (e) {} location.replace(location.pathname + "?theme=" + k); });
-    box.append(b);
-    chip.dataset.theme = k;
-  }
+function renderThemeToggle() {
+  const navy = document.documentElement.getAttribute("data-theme") === "navy";
+  const b = el("button", { class: "themeBtn", type: "button" }, navy ? "Switch to Sand theme" : "Switch to Navy theme");
+  b.addEventListener("click", () => {
+    try { localStorage.setItem("theme", navy ? "sand" : "navy"); } catch (e) {}
+    location.replace(location.pathname + (navy ? "?theme=sand" : "?theme=navy"));
+  });
+  $("themes").append(b);
 }
-const THEME_SWATCH = {
-  midnight: ["#0E1116", "#5B9BFF", "#F0A447", "#B79CFF"], paper: ["#F6F5F1", "#2563EB", "#C2410C", "#7C3AED"],
-  navy: ["#0A1628", "#4FC3F7", "#FFB74D", "#F48FB1"], terminal: ["#000000", "#22D3EE", "#FFB000", "#FF5FA2"],
-  sand: ["#EFE9DF", "#2F6690", "#B5651D", "#6D4C8D"]
-};
-renderThemes();
-document.querySelectorAll(".themeBtn .chip").forEach(c => THEME_SWATCH[c.dataset.theme].forEach(col => c.append(el("i", { style: `background:${col}` }))));
+renderThemeToggle();
 const meta = document.querySelector('meta[name="theme-color"]');
 if (meta) meta.setAttribute("content", css("--bg"));
 $("refresh").addEventListener("click", load);
