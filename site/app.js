@@ -5,8 +5,6 @@ const C = {
   text: css("--text"), muted: css("--muted"), faint: css("--faint"), border: css("--border"),
   card: css("--card"), neg: css("--neg"), grid: css("--grid"), band: parseFloat(css("--band")) || 0.2,
   probfill: parseFloat(css("--probfill")) || 0.5,
-  strat: css("--strat") || css("--text"), bench1: css("--bench1") || css("--faint"), bench2: css("--bench2") || css("--muted"),
-  endLabels: css("--endlabels") === "1",
   reg: [css("--growth"), css("--inflation"), css("--slowdown")],
   assets: [css("--a-spx"), css("--a-ty"), css("--a-gold"), css("--a-cash")]
 };
@@ -83,32 +81,6 @@ const regimeBands = {
   }
 };
 Chart.register(regimeBands);
-
-// ---------- direct labels at the end of each line (editorial theme) ----------
-const endLabels = {
-  id: "endLabels",
-  afterDatasetsDraw(chart, args, opts) {
-    if (!opts || !opts.on) return;
-    const { ctx, chartArea: a } = chart;
-    const items = chart.data.datasets.map((ds, i) => {
-      const meta = chart.getDatasetMeta(i), pt = meta.data[meta.data.length - 1];
-      return pt && { y: pt.y, x: pt.x, color: ds.borderColor, text: ds.label, val: opts.fmt(ds.data[ds.data.length - 1].y), main: !!ds.main };
-    }).filter(Boolean).sort((p, q) => p.y - q.y);
-    for (let i = 1; i < items.length; i++) items[i].y = Math.max(items[i].y, items[i - 1].y + 26);   // keep labels apart
-    ctx.save();
-    ctx.textBaseline = "middle";
-    for (const it of items) {
-      ctx.fillStyle = it.color;
-      ctx.font = `${it.main ? 600 : 500} 11px Inter, sans-serif`;
-      ctx.fillText(it.text, a.right + 8, it.y - 6);
-      ctx.font = "500 11px Inter, sans-serif";
-      ctx.fillText(it.val, a.right + 8, it.y + 7);
-      if (it.main) { ctx.beginPath(); ctx.arc(it.x, chart.getDatasetMeta(chart.data.datasets.findIndex(d => d.main)).data.at(-1).y, 3.5, 0, 7); ctx.fill(); }
-    }
-    ctx.restore();
-  }
-};
-Chart.register(endLabels);
 
 function baseOpts({ log = false, bands = true, yfmt = v => v, stacked = false, ymin, ymax } = {}) {
   return {
@@ -242,25 +214,12 @@ function renderPerf() {
   draw("eqChart", {
     type: "line",
     data: { datasets: [
-      line("S&P 500", pts(t, spx), C.endLabels ? C.bench1 : C.faint, C.endLabels ? {} : { borderDash: [4, 3] }),
-      line("60/40", pts(t, b64), C.endLabels ? C.bench2 : C.muted),
-      line("Strategy", pts(t, strat), C.strat, { borderWidth: C.endLabels ? 2.6 : 2.2, main: true })
+      line("S&P 500", pts(t, spx), C.faint, { borderDash: [4, 3] }),
+      line("60/40", pts(t, b64), C.muted),
+      line("Strategy", pts(t, strat), C.text, { borderWidth: 2.2 })
     ] },
-    options: (() => {
-      const o = baseOpts({ log, yfmt: v => "$" + (+v).toFixed(v < 10 ? 2 : 0) });
-      if (C.endLabels) {
-        o.plugins.endLabels = { on: true, fmt: v => "$" + v.toFixed(2) };
-        o.layout = { padding: { right: 62 } };
-        o.scales.x.grid.display = false;
-      }
-      return o;
-    })()
+    options: baseOpts({ log, yfmt: v => "$" + (+v).toFixed(v < 10 ? 2 : 0) })
   });
-  const sRet = useCagr ? st.strat.cagr : st.strat.ret, pRet = useCagr ? st.spx.cagr : st.spx.ret;
-  const span = { "1M": "the past month", "3M": "the past three months", YTD: "this year", "1Y": "the past year",
-                 "3Y": "the past three years", "5Y": "the past five years", "10Y": "the past ten years", Max: "since 1987" }[state.perf];
-  $("perfHeadline").textContent = `The strategy ${useCagr ? "compounded" : "returned"} ${pct(sRet)}${useCagr ? " a year" : ""} over ${span}, ` +
-    `against ${pct(pRet)} for the S&P 500, with a worst drawdown of ${pct(st.strat.maxdd)}.`;
   const dd = (() => { let pk = -Infinity; return strat.map(v => (pk = Math.max(pk, v), v / pk - 1)); })();
   draw("ddChart", {
     type: "line",
@@ -391,14 +350,7 @@ async function load() {
   renderAssets();
 }
 function renderThemeToggle() {
-  const cur = document.documentElement.getAttribute("data-theme");
-  if (cur === "editorial") {
-    const b = el("button", { class: "themeBtn", type: "button" }, "Back to Sand theme");
-    b.addEventListener("click", () => { try { localStorage.setItem("theme", "sand"); } catch (e) {} location.replace(location.pathname + "?theme=sand"); });
-    $("themes").append(b);
-    return;
-  }
-  const navy = cur === "navy";
+  const navy = document.documentElement.getAttribute("data-theme") === "navy";
   const b = el("button", { class: "themeBtn", type: "button" }, navy ? "Switch to Sand theme" : "Switch to Navy theme");
   b.addEventListener("click", () => {
     try { localStorage.setItem("theme", navy ? "sand" : "navy"); } catch (e) {}
