@@ -3,6 +3,7 @@ const REGS = ["Growth", "Inflation", "Slowdown"];
 const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 const C = {
   text: css("--text"), muted: css("--muted"), faint: css("--faint"), border: css("--border"),
+  card: css("--card"), neg: css("--neg"), band: parseFloat(css("--band")) || 0.13,
   reg: [css("--growth"), css("--inflation"), css("--slowdown")],
   assets: [css("--a-spx"), css("--a-ty"), css("--a-gold"), css("--a-cash")]
 };
@@ -18,6 +19,8 @@ const MACRO = {
 };
 
 const $ = id => document.getElementById(id);
+const alpha = (hex, a) => { const n = parseInt(hex.slice(1), 16); return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${a})`; };
+const THEMES = { midnight: "Midnight", paper: "Paper", navy: "Navy", terminal: "Terminal", sand: "Sand" };
 const pct = (x, d = 1) => x == null ? "—" : (x * 100).toFixed(d).replace("-", "−") + "%";
 const signed = (x, d = 2) => x == null ? "—" : (x >= 0 ? "+" : "−") + Math.abs(x).toFixed(d);
 const fmtDate = s => new Date(s + "T00:00:00Z").toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
@@ -66,7 +69,7 @@ const regimeBands = {
     if (!opts || !opts.on) return;
     const { ctx, chartArea: a, scales: { x } } = chart;
     ctx.save();
-    ctx.globalAlpha = opts.alpha || 0.13;
+    ctx.globalAlpha = opts.alpha || C.band;
     for (const s of D.spans) {
       const x0 = Math.max(x.getPixelForValue(Date.parse(s.a)), a.left);
       const x1 = Math.min(x.getPixelForValue(Date.parse(s.b)), a.right);
@@ -88,7 +91,7 @@ function baseOpts({ log = false, bands = true, yfmt = v => v, stacked = false, y
       legend: { display: false },
       regimeBands: { on: bands },
       tooltip: {
-        backgroundColor: "#0E1116", borderColor: C.border, borderWidth: 1, titleColor: C.text, bodyColor: C.text,
+        backgroundColor: C.card, borderColor: C.border, borderWidth: 1, titleColor: C.text, bodyColor: C.text,
         callbacks: { label: c => `${c.dataset.label}: ${c.parsed.y == null ? "—" : yfmt(c.parsed.y)}` }
       }
     },
@@ -136,6 +139,7 @@ function renderPulse() {
   $("depthTxt").textContent = `${zName} ${signed(p.depth)} · ${depthWord}`;
   $("gDot").style.left = `${50 + Math.max(-2, Math.min(2, p.depth)) * 25}%`;
   $("gDot").style.background = C.reg[ri];
+  $("gauge").style.setProperty("--gauge", C.reg[ri]);
   $("depthHelp").textContent = {
     Growth: "Growth has paid best when shallow (HY z below 0.5); very deep Growth has meant crisis.",
     Inflation: "Depth in Inflation has not mattered much historically.",
@@ -219,7 +223,7 @@ function renderPerf() {
   const dd = (() => { let pk = -Infinity; return strat.map(v => (pk = Math.max(pk, v), v / pk - 1)); })();
   draw("ddChart", {
     type: "line",
-    data: { datasets: [line("Drawdown", pts(t, dd), "#F28B82", { fill: "origin", backgroundColor: "rgba(242,139,130,.3)", borderWidth: 1 })] },
+    data: { datasets: [line("Drawdown", pts(t, dd), C.neg, { fill: "origin", backgroundColor: alpha(C.neg, 0.3), borderWidth: 1 })] },
     options: baseOpts({ bands: false, yfmt: v => pct(v, 0), ymax: 0 })
   });
 }
@@ -345,5 +349,24 @@ async function load() {
   renderIndicators();
   renderAssets();
 }
+function renderThemes() {
+  const box = $("themes"), cur = document.documentElement.getAttribute("data-theme") || "midnight";
+  for (const [k, name] of Object.entries(THEMES)) {
+    const chip = el("span", { class: "chip" });
+    const b = el("button", { class: "themeBtn" + (k === cur ? " on" : ""), type: "button", "aria-pressed": String(k === cur) }, chip, name);
+    b.addEventListener("click", () => { try { localStorage.setItem("theme", k); } catch (e) {} location.replace(location.pathname + "?theme=" + k); });
+    box.append(b);
+    chip.dataset.theme = k;
+  }
+}
+const THEME_SWATCH = {
+  midnight: ["#0E1116", "#5B9BFF", "#F0A447", "#B79CFF"], paper: ["#F6F5F1", "#2563EB", "#C2410C", "#7C3AED"],
+  navy: ["#0A1628", "#4FC3F7", "#FFB74D", "#F48FB1"], terminal: ["#000000", "#22D3EE", "#FFB000", "#FF5FA2"],
+  sand: ["#EFE9DF", "#2F6690", "#B5651D", "#6D4C8D"]
+};
+renderThemes();
+document.querySelectorAll(".themeBtn .chip").forEach(c => THEME_SWATCH[c.dataset.theme].forEach(col => c.append(el("i", { style: `background:${col}` }))));
+const meta = document.querySelector('meta[name="theme-color"]');
+if (meta) meta.setAttribute("content", css("--bg"));
 $("refresh").addEventListener("click", load);
 load();

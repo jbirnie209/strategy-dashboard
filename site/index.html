@@ -5,6 +5,14 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <title>Strategy Pulse</title>
   <meta name="theme-color" content="#0E1116" />
+  <script>
+    // theme: ?theme=name in the URL, else the last one picked on this device, else the default
+    (function () {
+      var t = new URLSearchParams(location.search).get("theme");
+      try { if (t) localStorage.setItem("theme", t); else t = localStorage.getItem("theme"); } catch (e) {}
+      if (t) document.documentElement.setAttribute("data-theme", t);
+    })();
+  </script>
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Pulse" />
@@ -117,7 +125,10 @@
       </section>
     </main>
 
-    <footer class="muted xxs" id="foot">Backtest from 1987 with the recommended rules (200-day MA, 5-day confirmation, trend-out to 10Y). Not investment advice.</footer>
+    <footer class="muted xxs" id="foot">
+      Backtest from 1987 with the recommended rules (200-day MA, 5-day confirmation, trend-out to 10Y). Not investment advice.
+      <div class="themes" id="themes" aria-label="Colour theme"></div>
+    </footer>
   </div>
   <script src="app.js"></script>
 </body>
