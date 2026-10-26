@@ -53,7 +53,7 @@ def main():
     # ---- chart series: daily for recent years, Fridays before
     full = res[m].reset_index(drop=True)
     dd = d[m].reset_index(drop=True)
-    keep = ((dates >= last - pd.DateOffset(years=DAILY_YEARS)) | (dates.dt.weekday == 4)).to_numpy(copy=True)
+    keep = ((dates >= last - pd.DateOffset(years=DAILY_YEARS)) | (dates.dt.day_of_week == 4)).to_numpy(copy=True)
     keep[-1] = True
     k = np.where(keep)[0]
     ma = lambda s, n: s.rolling(n).mean()

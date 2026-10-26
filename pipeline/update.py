@@ -20,6 +20,7 @@ PRICES = {'spx': ('ES=F', lambda x: x),            # S&P 500 e-mini front month
           'aud': ('AUD=X', lambda x: x)}           # AUD per USD
 LOOKBACK_DAYS = 60
 FFILL_LIMIT = 5
+RELINK_ROWS = 5            # re-pull the last few price rows each run (late or partial bars)
 
 
 def fetch_fred(sid, start):
@@ -45,27 +46,34 @@ def fetch_yahoo(sym, days=LOOKBACK_DAYS):
                      params=dict(range=f'{days}d', interval='1d'), headers=UA, timeout=30)
     r.raise_for_status()
     res = r.json()['chart']['result'][0]
-    off = res['meta'].get('gmtoffset', 0)
-    dates = pd.to_datetime(np.array(res['timestamp']) + off, unit='s').normalize()
+    tz = res['meta'].get('exchangeTimezoneName', 'UTC')
+    local = pd.to_datetime(np.array(res['timestamp']), unit='s', utc=True).tz_convert(tz)
     close = res['indicators']['quote'][0]['close']
-    s = pd.Series(close, index=dates, dtype=float).dropna()
-    return s[~s.index.duplicated(keep='last')]
+    s = pd.Series(close, index=local.tz_localize(None).normalize(), dtype=float).dropna()
+    s = s[~s.index.duplicated(keep='last')]
+    now = pd.Timestamp.now(tz=tz)
+    if len(s) and s.index[-1] == now.tz_localize(None).normalize() and now.hour < 17:
+        s = s.iloc[:-1]                              # today's session is still trading
+    return s
 
 
 def update_fred():
-    fred = {}
+    fred, failures = {}, 0
     for sid in FRED_IDS:
         path = DATA / 'fred' / f'{sid}.csv'
         old = pd.read_csv(path, parse_dates=['date']).set_index('date')['value'] if path.exists() else pd.Series(dtype=float)
         start = (old.index.max() - pd.Timedelta(days=LOOKBACK_DAYS)).strftime('%Y-%m-%d') if len(old) else '1960-01-01'
         try:
+            if failures >= 2:
+                raise RuntimeError('skipped after repeated failures')
             new = fetch_fred(sid, start)
             merged = pd.concat([old[~old.index.isin(new.index)], new]).sort_index()
             merged.rename('value').rename_axis('date').reset_index().to_csv(path, index=False, date_format='%Y-%m-%d')
             print(f'FRED {sid}: {len(new)} obs from {start}, last {merged.index.max().date()}')
             old = merged
         except Exception as e:                       # keep going with what we have
-            print(f'FRED {sid}: FAILED ({e})', file=sys.stderr)
+            failures += 1
+            print(f'FRED {sid}: FAILED ({e})')
         fred[sid] = old
     return fred
 
@@ -80,22 +88,27 @@ def update_daily(fred):
             quotes[col] = f(fetch_yahoo(sym))
             print(f'Yahoo {sym}: last {quotes[col].index.max().date()}')
         except Exception as e:
-            print(f'Yahoo {sym}: FAILED ({e})', file=sys.stderr)
+            print(f'Yahoo {sym}: FAILED ({e})')
     if 'spx' in quotes:                              # the S&P futures calendar drives new rows
         today = pd.Timestamp(dt.datetime.now(dt.timezone.utc).date())
         new_dates = quotes['spx'].index[(quotes['spx'].index > last) & (quotes['spx'].index <= today)]
-        new_dates = new_dates[new_dates.weekday < 5]
+        new_dates = new_dates[new_dates.day_of_week < 5]
         if len(new_dates):
             daily = pd.concat([daily, pd.DataFrame({'date': new_dates})], ignore_index=True)
     daily = daily.sort_values('date').reset_index(drop=True)
     new = daily.date > last
-    for col, q in quotes.items():                   # chain-link: new level = last level x Yahoo return since then
-        base = q[q.index <= last]
-        if not len(base) or not new.any():
+    old_dates = daily.date[~new]
+    anchor = old_dates.iloc[-RELINK_ROWS - 1]       # re-link from a few rows back to fix late or partial bars
+    redo = daily.date > anchor
+    for col, q in quotes.items():                   # chain-link: level = anchor level x Yahoo return since anchor
+        base = q[q.index <= anchor]
+        if not len(base):
             continue
-        factor = daily.loc[daily.date == last, col].iloc[0] / base.iloc[-1]
-        daily.loc[new, col] = q.reindex(daily.date[new]).values * factor
-        daily.loc[new, col] = daily[col].ffill()[new]
+        factor = daily.loc[daily.date == anchor, col].iloc[0] / base.iloc[-1]
+        fresh = q.reindex(daily.date[redo]).values * factor
+        cur = daily.loc[redo, col].values
+        daily.loc[redo, col] = np.where(np.isfinite(fresh), fresh, cur)
+        daily.loc[redo, col] = daily[col].ffill()[redo]
     # rates and spreads: recompute the recent tail from FRED (picks up late publications)
     tail = daily.date > last - pd.Timedelta(days=LOOKBACK_DAYS)
     idx = daily.date[tail]

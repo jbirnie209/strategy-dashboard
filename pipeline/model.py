@@ -36,7 +36,7 @@ def prepare(daily):
 
 def rolling_threshold(dates, x, years, q):
     """Quantile q of Friday values in (date - years, date], like the workbook's MEDIAN(FILTER(...))."""
-    fri = (dates.dt.weekday == 4).values & np.isfinite(x.values)
+    fri = (dates.dt.day_of_week == 4).values & np.isfinite(x.values)
     fd, fv = dates.values[fri], x.values[fri]
     starts = (dates - pd.DateOffset(years=years)).values
     hi = np.searchsorted(fd, dates.values, side='right')
@@ -50,7 +50,7 @@ def rolling_threshold(dates, x, years, q):
 
 def rolling_std(dates, x, years=10):
     """Std of Friday values in (date - years, date], same window as the median thresholds."""
-    fri = (dates.dt.weekday == 4).values & np.isfinite(x.values)
+    fri = (dates.dt.day_of_week == 4).values & np.isfinite(x.values)
     fd, fv = dates.values[fri], x.values[fri]
     hi = np.searchsorted(fd, dates.values, side='right')
     lo = np.searchsorted(fd, (dates - pd.DateOffset(years=years)).values, side='right')
@@ -126,7 +126,7 @@ def stats(ret, cash, dates):
 
 def features(d, res, fred):
     """Weekly (Friday) features, each using only data published by that Friday."""
-    fri = d[d.date.dt.weekday == 4].copy()
+    fri = d[d.date.dt.day_of_week == 4].copy()
     fri['hy_gap'] = (d.hy - res.hy_thr)[fri.index]
     fri['slope_gap'] = (d.slope - res.sl_thr)[fri.index]
     fri['slope_chg13'] = fri.slope.diff(13)
