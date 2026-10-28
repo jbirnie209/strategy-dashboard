@@ -78,13 +78,33 @@
         </details>
       </section>
 
+      <section class="card wide" id="riskCard" data-card="S&amp;P exposure and volatility">
+        <div class="row"><span class="lbl">S&amp;P exposure and volatility</span><span class="muted xs" id="riskAsOf"></span></div>
+        <div class="tiles4" id="riskTiles" data-block="Exposure figures"></div>
+        <div class="pills" id="riskPills"></div>
+        <div class="stack" data-block="S&amp;P volatility chart">
+          <div class="row sub"><span>S&amp;P 10-day volatility vs spike trigger</span><span class="num xs" id="volNow"></span></div>
+          <div class="chartBox"><canvas id="volChart" aria-label="S&amp;P 10-day realised volatility and the spike trigger at twice 1-year volatility" role="img"></canvas></div>
+          <p class="muted xxs">S&amp;P exposure halves on any day the 10-day line closes above the trigger (2 × 1-year volatility).</p>
+        </div>
+        <div class="stack" data-block="S&amp;P exposure chart">
+          <div class="row sub"><span>S&amp;P exposure kept</span><span class="muted xxs">thirds from 50/100/200d trends, halved on spikes</span></div>
+          <div class="chartBox short"><canvas id="expChart" aria-label="Share of S&amp;P weight kept over time" role="img"></canvas></div>
+        </div>
+        <div class="stack" data-block="Realised vs target volatility">
+          <div class="row sub"><span>Strategy volatility at <span id="levX">2.1</span>x vs target</span><span class="num xs" id="rvNow"></span></div>
+          <div class="chartBox"><canvas id="rvChart" aria-label="Levered strategy 3-month realised volatility against the S&amp;P long-run volatility target" role="img"></canvas></div>
+        </div>
+      </section>
+
       <section class="card wide" id="perfCard" data-card="Performance">
         <div class="row"><span class="lbl">Performance</span><span class="muted xxs" id="perfFrom"></span></div>
         <div class="pills" id="perfPills"></div>
+        <div class="pills" id="levPills"><span class="lbl inline">Leverage</span></div>
         <div class="tiles4" id="kpis" data-block="Performance figures"></div>
         <div class="chartBox tall"><canvas id="eqChart" aria-label="Growth of $1: strategy, 60/40 and S&P 500, regime bands behind" role="img"></canvas></div>
         <div class="legend xs muted">
-          <span><i class="sw" style="background:var(--text)"></i>Strategy</span>
+          <span><i class="sw" style="background:var(--text)"></i><span id="stratLbl">Strategy</span></span>
           <span><i class="sw" style="background:var(--muted)"></i>60/40</span>
           <span><i class="sw dash"></i>S&amp;P 500</span>
           <span><i class="sw" style="background:var(--growth)"></i>Growth</span>
@@ -140,7 +160,7 @@
     </main>
 
     <footer class="muted xxs" id="foot">
-      Backtest from 1987 with the recommended rules (200-day MA, 5-day confirmation, trend-out to 10Y). Not investment advice.
+      Backtest from 1987 with the live rules: S&amp;P kept in thirds by its 50/100/200-day trends and halved on volatility spikes; 10Y and gold on 200-day trends; 5-day confirmation; trend-out to 10Y. Levered view = cash + 2.1 × (strategy − cash). Not investment advice.
       <div class="themes" id="themes" aria-label="Colour theme"></div>
     </footer>
   </div>

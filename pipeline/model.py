@@ -10,6 +10,9 @@ ASSETS = ['spx', 'ty', 'gold']
 REGS = ['Growth', 'Inflation', 'Slowdown']
 BASE_ALLOC = {'Growth': (0.8, 0.0, 0.2), 'Inflation': (0.6, 0.0, 0.4), 'Slowdown': (0.0, 1.0, 0.0)}
 REC = dict(ma_len=200, ma_confirm=5, regime_confirm=5, trend_out='10y')
+SPX_MAS = (50, 100, 200)        # live rule 'A + B': S&P exposure = share of these confirmed trends ...
+VOL_SPIKE = (10, 252, 2.0)      # ... halved when 10d realised vol > 2 x 1y realised vol (same day)
+LEVERAGE = 2.1                  # levered view: cash + 2.1 x (strategy - cash), matches S&P vol since 1987
 PROB_COLS = ['hy_gap', 'slope_gap', 'slope_chg13', 'y1_chg26', 'sahm']   # best set from the Mahalanobis study
 SAHM_LAG_DAYS = 40                                                      # Sahm/UNRATE released ~5 weeks after month start
 
@@ -109,6 +112,41 @@ def run(d, ma_len=200, ma_confirm=5, regime_confirm=5, trend_out='10y', alloc=No
         res['w_' + a] = Wl[:, i]
     res['tw_cash'] = 1 - W.sum(1)
     return res
+
+
+def live(d, base, ma_confirm=5):
+    """Live rule 'A + B' on the regimes of `base` (a run() result). Fractional S&P exposure; gold and 10Y keep the
+    200d confirmed flag. Removed S&P/gold weight parks in the 10Y if its flag is on, else cash. Same maths as
+    the leverage study's custom.run."""
+    fl = {n: trend_flags(d['spx'], n, ma_confirm).astype(float) for n in SPX_MAS}
+    trend = sum(fl.values()) / len(SPX_MAS)
+    n_s, n_l, k = VOL_SPIKE
+    v_s = d['r_spx'].rolling(n_s).std().values * np.sqrt(261)
+    v_l = d['r_spx'].rolling(n_l).std().values * np.sqrt(261)
+    spike = v_s > k * v_l
+    e_spx = trend * np.where(spike, 0.5, 1)
+    e_ty, e_gold = base['up_ty'].values.astype(float), base['up_gold'].values.astype(float)
+    A = np.array([BASE_ALLOC[r] for r in base['regime']])
+    W = A * np.c_[e_spx, e_ty, e_gold]
+    W[:, 1] += (A.sum(1) - W.sum(1)) * e_ty
+    Wl = np.r_[np.zeros((1, 3)), W[:-1]]
+    rc = d['r_cash'].values
+    R = np.c_[d['r_spx'], d['r_ty_tr'] - rc, d['r_gold']]
+    res = base.copy()
+    res['ret'] = (Wl * R).sum(1) + rc * np.maximum(1 - Wl[:, [0, 2]].sum(1), 0)
+    res['reb'] = np.r_[False, np.any(np.abs(np.diff(Wl, axis=0)) > 1e-9, axis=1)]
+    for i, a in enumerate(ASSETS):
+        res['tw_' + a] = W[:, i]
+        res['w_' + a] = Wl[:, i]
+    res['tw_cash'] = 1 - W.sum(1)
+    for n in SPX_MAS:
+        res[f'spx_up{n}'] = fl[n].astype(bool)
+    res['e_spx'], res['vol10'], res['vol252'], res['spike'] = e_spx, v_s, v_l, spike
+    return res
+
+
+def lever(ret, cash, x=LEVERAGE):
+    return np.asarray(cash) + x * (np.asarray(ret) - np.asarray(cash))
 
 
 def stats(ret, cash, dates):

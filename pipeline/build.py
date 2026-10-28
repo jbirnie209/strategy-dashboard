@@ -23,7 +23,8 @@ def main():
     daily = pd.read_csv(DATA / 'daily.csv', parse_dates=['date'])
     fred = {p.stem: pd.read_csv(p, parse_dates=['date']).set_index('date')['value'] for p in (DATA / 'fred').glob('*.csv')}
     d = M.prepare(daily)
-    res = M.run(d, **M.REC)
+    base = M.run(d, **M.REC)                   # regimes, trend flags and the plain 200d rule (comparison)
+    res = M.live(d, base)                      # live rule 'A + B'
     z_hy, z_sl, dep = M.depth(d, res)
     F = M.features(d, res, fred)
     P = M.regime_probs(F, pd.Series(res.regime.values, index=res.date), start='1980-01-01')
@@ -32,8 +33,10 @@ def main():
     r, c, dates = res.ret[m].values, res.cash[m].values, res.date[m].reset_index(drop=True)
     b6040 = (0.6 * d.r_spx + 0.4 * d.r_ty_tr)[m].values
     bspx = d.r_spx[m].values + c                 # futures return + cash = S&P total return proxy
-    eq = {'strat': np.cumprod(1 + r), 'b6040': np.cumprod(1 + b6040), 'spx': np.cumprod(1 + bspx)}
-    rets = {'strat': r, 'b6040': b6040, 'spx': bspx}
+    lev = M.lever(r, c)
+    rec = base.ret[m].values
+    rets = {'strat': r, 'lev': lev, 'rec': rec, 'b6040': b6040, 'spx': bspx}
+    eq = {k: np.cumprod(1 + v) for k, v in rets.items()}
 
     # ---- stats per look-back window
     last = dates.iloc[-1]
@@ -62,6 +65,11 @@ def main():
         't': ds(dates[k]),
         'strat': rnd(eq['strat'][k], 5), 'b6040': rnd(eq['b6040'][k], 5), 'spx_bh': rnd(eq['spx'][k], 5),
         'dd': rnd((eq['strat'] / np.maximum.accumulate(eq['strat']) - 1)[k], 4),
+        'lev': rnd(eq['lev'][k], 5), 'rec': rnd(eq['rec'][k], 5),
+        'dd_lev': rnd((eq['lev'] / np.maximum.accumulate(eq['lev']) - 1)[k], 4),
+        'e_spx': rnd(full.e_spx.values[k], 3), 'vol10': rnd(full.vol10.values[k], 4),
+        'vol_trig': rnd(M.VOL_SPIKE[2] * full.vol252.values[k], 4),
+        'rv_lev': rnd(pd.Series(lev).rolling(63).std().values[k] * np.sqrt(261), 4),
         'regime': [int(x) for x in reg_code[k]],
         'hy': rnd(dd.hy[k], 3), 'hy_med': rnd(full.hy_thr[k], 3),
         'slope': rnd(dd.slope[k], 3), 'sl_med': rnd(full.sl_thr[k], 3),
@@ -142,6 +150,11 @@ def main():
         'target': [float(L.tw_spx), float(L.tw_ty), float(L.tw_gold), float(L.tw_cash)],
         'tbill': round(float(d.tbill.iloc[-1]), 2), 'rebalance_today': bool(changes and changes[0]['d'] == last.strftime('%Y-%m-%d')),
         'last_change': changes[0]['d'] if changes else None,
+        'risk': {'trend': {str(n): bool(L[f'spx_up{n}']) for n in M.SPX_MAS}, 'e_spx': round(float(L.e_spx), 3),
+                 'vol10': round(float(L.vol10), 4), 'vol252': round(float(L.vol252), 4),
+                 'trigger': round(float(M.VOL_SPIKE[2] * L.vol252), 4), 'spike': bool(L.spike),
+                 'leverage': M.LEVERAGE, 'target_vol': round(float(stats['Max']['spx']['vol']), 4),
+                 'rv_lev': round(float(np.std(lev[-63:]) * np.sqrt(261)), 4)},
     }
     out = {'generated': dt.datetime.now(dt.timezone.utc).strftime('%Y-%m-%dT%H:%MZ'),
            'pulse': pulse, 'assets': asset_meta, 'stats': stats, 'series': series, 'weekly': weekly,

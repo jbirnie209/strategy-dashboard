@@ -22,6 +22,12 @@
   const main = document.querySelector("main.grid");
   const cards = () => [...main.querySelectorAll(":scope > section[data-card]")];
   if (!cfg.cards) cfg.cards = cards().map(c => ({ id: c.id, show: true, wide: c.classList.contains("wide") }));
+  // cards added to the page after the layout was saved: slot each in after the card it follows in the page
+  cards().forEach((c, i, all) => {
+    if (cfg.cards.some(x => x.id === c.id)) return;
+    const prev = i ? cfg.cards.findIndex(x => x.id === all[i - 1].id) : -1;
+    cfg.cards.splice(prev + 1, 0, { id: c.id, show: true, wide: c.classList.contains("wide") });
+  });
 
   function applyColours() {
     root.removeAttribute("style");
