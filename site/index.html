@@ -30,15 +30,20 @@
     <header class="top">
       <div class="row">
         <h1>Countercyclical Strategy</h1>
+        <div class="pills">
+        <button class="pill icon" id="customiseTop" aria-label="Customise colours and layout">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>
+        </button>
         <button class="pill icon" id="refresh" aria-label="Refresh data">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/></svg>
         </button>
+        </div>
       </div>
       <p class="muted small" id="stamp">Loading…</p>
     </header>
 
     <main class="grid">
-      <section class="card" id="regimeCard">
+      <section class="card" id="regimeCard" data-card="Current regime">
         <span class="lbl">Current regime</span>
         <div class="regimeLine">
           <span class="regimeName" id="regimeName">—</span>
@@ -49,12 +54,12 @@
           <div class="tile"><div class="muted xs">HY spread</div><div class="num big" id="hyVal">—</div><div class="muted xxs" id="hyCmp"></div></div>
           <div class="tile"><div class="muted xs">10Y minus 1Y</div><div class="num big" id="slVal">—</div><div class="muted xxs" id="slCmp"></div></div>
         </div>
-        <div class="stack">
+        <div class="stack" data-block="Probability bar">
           <div class="row"><span class="sub">Regime probability</span><span class="muted xxs" id="probDate">Mahalanobis, weekly</span></div>
           <div class="probBar" id="probBar"></div>
           <div class="row xs" id="probLegend"></div>
         </div>
-        <div class="stack">
+        <div class="stack" data-block="Depth gauge">
           <div class="row"><span class="sub">Regime depth</span><span class="num xs" id="depthTxt"></span></div>
           <div class="gauge" id="gauge"><div class="gMid"></div><div class="gDot" id="gDot"></div></div>
           <div class="row muted xxs"><span>−2σ</span><span>at threshold</span><span>deep +2σ</span></div>
@@ -62,7 +67,7 @@
         </div>
       </section>
 
-      <section class="card">
+      <section class="card" id="allocCard" data-card="Target allocation">
         <div class="row"><span class="lbl">Target allocation</span><span class="muted xs" id="rebTxt"></span></div>
         <div class="allocBar" id="allocBar"></div>
         <div class="allocRows" id="allocRows"></div>
@@ -73,10 +78,10 @@
         </details>
       </section>
 
-      <section class="card wide">
+      <section class="card wide" id="perfCard" data-card="Performance">
         <div class="row"><span class="lbl">Performance</span><span class="muted xxs" id="perfFrom"></span></div>
         <div class="pills" id="perfPills"></div>
-        <div class="tiles4" id="kpis"></div>
+        <div class="tiles4" id="kpis" data-block="Performance figures"></div>
         <div class="chartBox tall"><canvas id="eqChart" aria-label="Growth of $1: strategy, 60/40 and S&P 500, regime bands behind" role="img"></canvas></div>
         <div class="legend xs muted">
           <span><i class="sw" style="background:var(--text)"></i>Strategy</span>
@@ -86,37 +91,47 @@
           <span><i class="sw" style="background:var(--inflation)"></i>Inflation</span>
           <span><i class="sw" style="background:var(--slowdown)"></i>Slowdown</span>
         </div>
-        <div class="sub">Drawdown</div>
-        <div class="chartBox short"><canvas id="ddChart" aria-label="Strategy drawdown" role="img"></canvas></div>
-        <details>
+        <div class="stack" data-block="Drawdown chart">
+          <div class="sub">Drawdown</div>
+          <div class="chartBox short"><canvas id="ddChart" aria-label="Strategy drawdown" role="img"></canvas></div>
+        </div>
+        <details data-block="Calendar-year returns">
           <summary>Calendar-year returns</summary>
           <div class="tableBox"><table class="tbl" id="annualTbl"></table></div>
         </details>
-        <details>
+        <details data-block="Return by regime">
           <summary>Return by regime (since 1987)</summary>
           <table class="tbl" id="regimeTbl"></table>
         </details>
       </section>
 
-      <section class="card wide">
+      <section class="card wide" id="indCard" data-card="Regime indicators">
         <div class="row"><span class="lbl">Regime indicators</span></div>
         <div class="pills" id="indPills"></div>
-        <div class="row sub"><span>HY spread vs 10y median</span><span class="num xs" id="hyNow"></span></div>
-        <div class="chartBox"><canvas id="hyChart" aria-label="HY spread and its 10-year median" role="img"></canvas></div>
-        <div class="row sub"><span>10Y minus 1Y vs 10y median</span><span class="num xs" id="slNow"></span></div>
-        <div class="chartBox"><canvas id="slChart" aria-label="Yield curve slope and its 10-year median" role="img"></canvas></div>
-        <div class="row sub"><span>Regime probability</span><span class="muted xxs">Mahalanobis</span></div>
-        <div class="chartBox"><canvas id="probChart" aria-label="Regime probabilities over time" role="img"></canvas></div>
-        <div class="row sub"><span>Regime depth (z-scores)</span><span class="muted xxs">HY and slope vs median, in 10y SDs</span></div>
-        <div class="chartBox"><canvas id="depthChart" aria-label="HY and slope z-scores" role="img"></canvas></div>
-        <div class="pills" id="macroPills"><span class="lbl inline">Add</span></div>
+        <div class="stack" data-block="HY spread chart">
+          <div class="row sub"><span>HY spread vs 10y median</span><span class="num xs" id="hyNow"></span></div>
+          <div class="chartBox"><canvas id="hyChart" aria-label="HY spread and its 10-year median" role="img"></canvas></div>
+        </div>
+        <div class="stack" data-block="Yield curve chart">
+          <div class="row sub"><span>10Y minus 1Y vs 10y median</span><span class="num xs" id="slNow"></span></div>
+          <div class="chartBox"><canvas id="slChart" aria-label="Yield curve slope and its 10-year median" role="img"></canvas></div>
+        </div>
+        <div class="stack" data-block="Probability chart">
+          <div class="row sub"><span>Regime probability</span><span class="muted xxs">Mahalanobis</span></div>
+          <div class="chartBox"><canvas id="probChart" aria-label="Regime probabilities over time" role="img"></canvas></div>
+        </div>
+        <div class="stack" data-block="Depth chart">
+          <div class="row sub"><span>Regime depth (z-scores)</span><span class="muted xxs">HY and slope vs median, in 10y SDs</span></div>
+          <div class="chartBox"><canvas id="depthChart" aria-label="HY and slope z-scores" role="img"></canvas></div>
+        </div>
+        <div class="pills" id="macroPills" data-block="Macro indicator buttons"><span class="lbl inline">Add</span></div>
         <div id="macroBox" hidden>
           <div class="row sub"><span id="macroTitle"></span><span class="num xs" id="macroNow"></span></div>
           <div class="chartBox"><canvas id="macroChart" aria-label="Selected macro indicator" role="img"></canvas></div>
         </div>
       </section>
 
-      <section class="card wide">
+      <section class="card wide" id="assetCard" data-card="Assets vs trend">
         <div class="row"><span class="lbl">Assets vs trend</span><span class="muted xs">distance from moving average</span></div>
         <div class="pills" id="assetPills"></div>
         <div class="assetList" id="assetList"></div>
@@ -129,6 +144,8 @@
       <div class="themes" id="themes" aria-label="Colour theme"></div>
     </footer>
   </div>
+  <script src="layout.js"></script>
+  <script src="customise.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

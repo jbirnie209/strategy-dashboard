@@ -1,13 +1,19 @@
 // Strategy Pulse: renders data.json (built nightly by pipeline/build.py).
 const REGS = ["Growth", "Inflation", "Slowdown"];
 const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-const C = {
+const C = {};
+function readColors() {
+  Object.assign(C, {
   text: css("--text"), muted: css("--muted"), faint: css("--faint"), border: css("--border"),
   card: css("--card"), neg: css("--neg"), grid: css("--grid"), band: parseFloat(css("--band")) || 0.2,
   probfill: parseFloat(css("--probfill")) || 0.5,
   reg: [css("--growth"), css("--inflation"), css("--slowdown")],
   assets: [css("--a-spx"), css("--a-ty"), css("--a-gold"), css("--a-cash")]
-};
+  });
+  Chart.defaults.color = C.muted;
+  Chart.defaults.borderColor = C.border;
+}
+readColors();
 const ASSET_NAMES = ["S&P 500", "10Y Treasury", "Gold", "Cash"];
 const PERF_RANGES = ["1M", "3M", "YTD", "1Y", "3Y", "5Y", "10Y", "Max"];
 const IND_RANGES = ["1Y", "3Y", "5Y", "10Y", "Max"];
@@ -37,10 +43,8 @@ let D = null;
 const charts = {};
 const state = { perf: "1Y", ind: "1Y", asset: "1Y", macro: null, openAsset: null };
 
-Chart.defaults.color = C.muted;
 Chart.defaults.font.family = "Inter, system-ui, sans-serif";
 Chart.defaults.font.size = 11;
-Chart.defaults.borderColor = C.border;
 Chart.defaults.animation = false;
 
 // ---------- time windows ----------
@@ -362,4 +366,15 @@ renderThemeToggle();
 const meta = document.querySelector('meta[name="theme-color"]');
 if (meta) meta.setAttribute("content", css("--bg"));
 $("refresh").addEventListener("click", load);
+// called by customise.js after colours change: re-read them and redraw everything
+window.redrawAll = () => {
+  readColors();
+  if (meta) meta.setAttribute("content", css("--bg"));
+  if (!D) return;
+  renderPulse(); renderPerf(); renderTables(); renderIndicators(); renderAssets();
+};
+const cBtn = el("button", { class: "themeBtn", type: "button" }, "Customise colours and layout");
+cBtn.addEventListener("click", () => window.openCustomise());
+$("themes").append(cBtn);
+$("customiseTop").addEventListener("click", () => window.openCustomise());
 load();

@@ -23,3 +23,7 @@ moves to the 10Y if the 10Y is in trend, otherwise cash; 10Y leg = DGS10 total r
 **Local preview:** `cd pipeline && python build.py && cd ../site && python -m http.server`.
 
 Chart.js 4.4.1 and chartjs-adapter-date-fns 3.0.0 are vendored in `site/vendor` (MIT).
+
+**Customise mode.** The sliders button (top right) or "Customise colours and layout" (bottom) opens a panel to change
+colours, reorder/hide/resize cards and hide individual charts. Settings save in the browser on that device.
+"Export settings" copies them as JSON; paste that into `site/layout.js` to make it the default for every device.
