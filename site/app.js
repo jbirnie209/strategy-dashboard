@@ -8,13 +8,17 @@ function readColors() {
   card: css("--card"), neg: css("--neg"), grid: css("--grid"), band: parseFloat(css("--band")) || 0.2,
   probfill: parseFloat(css("--probfill")) || 0.5,
   reg: [css("--growth"), css("--inflation"), css("--slowdown")],
-  assets: [css("--a-spx"), css("--a-ty"), css("--a-gold"), css("--a-cash")]
+  assets: [css("--a-spx"), css("--a-r2k"), css("--a-ty"), css("--a-gold"), css("--a-wti"), css("--a-cash")]
   });
   Chart.defaults.color = C.muted;
   Chart.defaults.borderColor = C.border;
 }
 readColors();
-const ASSET_NAMES = ["S&P 500", "10Y Treasury", "Gold", "Cash"];
+const ASSET_KEYS = ["spx", "r2k", "ty", "gold", "wti", null];
+const ASSET_NAMES = ["S&P 500", "Russell 2000", "10Y Treasury", "Gold", "WTI crude", "Cash"];
+const SHORT = ["S&P", "Russell", "10Y", "Gold", "WTI", "Cash"];
+const EQ = { spx: "S&P", r2k: "Russell" };
+const mix = (w, f = pct) => w.map((x, i) => x > 0 ? `${SHORT[i]} ${f(x, 0)}` : null).filter(Boolean).join(" · ");
 const PERF_RANGES = ["1M", "3M", "YTD", "1Y", "3Y", "5Y", "10Y", "Max"];
 const IND_RANGES = ["1Y", "3Y", "5Y", "10Y", "Max"];
 const MACRO = {
@@ -41,7 +45,7 @@ const el = (tag, attrs = {}, ...kids) => {
 
 let D = null;
 const charts = {};
-const state = { perf: "1Y", ind: "1Y", asset: "1Y", risk: "1Y", lev: "1x", macro: null, openAsset: null };
+const state = { perf: "1Y", ind: "1Y", asset: "1Y", risk: "1Y", eq: "spx", eqName: "S&P", lev: "1x", macro: null, openAsset: null };
 const levKey = () => state.lev === "1x" ? "strat" : "lev";
 
 Chart.defaults.font.family = "Inter, system-ui, sans-serif";
@@ -156,29 +160,28 @@ function renderPulse() {
   ab.replaceChildren(); rows.replaceChildren();
   const trend = {};
   for (const a of D.assets) trend[a.key] = a;
-  const keys = ["spx", "ty", "gold", null];
   p.target.forEach((w, i) => {
     if (w > 0) ab.append(el("div", { style: `flex:${w};background:${C.assets[i]}` }));
-    const k = keys[i];
+    const k = ASSET_KEYS[i];
     const tr = k ? trend[k] : null;
-    const rk = p.risk, nUp = Object.values(rk.trend).filter(Boolean).length;
-    const note = k === "spx" ? `${nUp}/3 trends${rk.spike ? " · vol spike, halved" : ""} · keep ${pct(rk.e_spx, 0)}`
+    const eq = p.risk.eq[k];
+    const note = eq ? `${Object.values(eq.trend).filter(Boolean).length}/3 trends${eq.spike ? " · vol spike, halved" : ""} · keep ${pct(eq.e, 0)}`
       : tr ? (tr.confirmed_up ? "↑ in trend (200d)" : "↓ below trend (200d)") : `T-bill ${p.tbill.toFixed(2)}%`;
     rows.append(el("div", { class: "allocRow" },
       el("span", {}, el("i", { class: "dot", style: `background:${C.assets[i]}` }), ASSET_NAMES[i]),
       el("span", { class: "muted xs" }, note),
       el("span", { class: "num" }, pct(w, 0))));
   });
-  const L = p.risk.leverage, g = p.target.slice(0, 3).map(w => w * L);
+  const L = p.risk.leverage, g = p.target.slice(0, 5).map(w => w * L);
   rows.append(el("div", { class: "muted xs" }, g.some(x => x > 0)
-    ? `At ${L}x: ${g.map((w, i) => w > 0 ? `${ASSET_NAMES[i].replace(" Treasury", "")} ${pct(w, 0)}` : null).filter(Boolean).join(" · ")} of capital, funded at the T-bill rate`
+    ? `At ${L}x: ${mix(g)} of capital, funded at the T-bill rate`
     : `At ${L}x: nothing to lever while the allocation is all cash`));
   $("rebTxt").textContent = p.rebalance_today ? "rebalance today" : `last change ${fmtDate(p.last_change)}`;
-  $("blendTxt").textContent = `S&P ${pct(p.blend[0], 0)} · 10Y ${pct(p.blend[1], 0)} · Gold ${pct(p.blend[2], 0)}`;
+  $("blendTxt").textContent = mix(p.blend);
   const ch = $("changes");
   ch.replaceChildren(el("div", { class: "lbl" }, "Recent allocation changes"));
   for (const c of D.changes) {
-    const parts = c.w.map((w, i) => w > 0 ? `${ASSET_NAMES[i].replace(" Treasury", "")} ${pct(w, 0)}` : null).filter(Boolean).join(" · ");
+    const parts = mix(c.w);
     ch.append(el("div", { class: "change" },
       el("span", { class: "num" }, c.d),
       el("span", { style: `color:${C.reg[REGS.indexOf(c.r)]}` }, c.r),
@@ -219,7 +222,7 @@ function renderPerf() {
   k.append(
     tile(useCagr ? "CAGR" : "Return", ret(s1), `${other} · 60/40 ${ret(st.b6040)} · S&P ${ret(st.spx)}`),
     tile("Sharpe", s1.sharpe == null ? "—" : s1.sharpe.toFixed(2),
-         `200d-only rule ${st.rec.sharpe?.toFixed(2) ?? "—"} · 60/40 ${st.b6040.sharpe?.toFixed(2) ?? "—"} · S&P ${st.spx.sharpe?.toFixed(2) ?? "—"}`),
+         `3-asset rule ${st.rec.sharpe?.toFixed(2) ?? "—"} · 60/40 ${st.b6040.sharpe?.toFixed(2) ?? "—"} · S&P ${st.spx.sharpe?.toFixed(2) ?? "—"}`),
     tile("Max drawdown", pct(s1.maxdd), `60/40 ${pct(st.b6040.maxdd)} · S&P ${pct(st.spx.maxdd)}`),
     tile("Volatility", pct(s1.vol), `S&P ${pct(st.spx.vol)} · ${st.strat.reb_per_yr} rebalances / yr`)
   );
@@ -258,28 +261,35 @@ function renderTables() {
   }
 }
 
-// ---------- S&P exposure and volatility ----------
+// ---------- equity exposure and volatility ----------
 function renderRisk() {
   const S = D.series, p = D.pulse, rk = p.risk, st = D.stats.Max;
   const tile = (label, v, cmp) => el("div", { class: "tile" }, el("div", { class: "muted xs" }, label), el("div", { class: "v" }, v), el("div", { class: "cmp" }, cmp));
   $("riskAsOf").textContent = fmtDate(p.asof);
+  const eqTile = a => {
+    const e = rk.eq[a];
+    return [tile(`${EQ[a]} exposure`, pct(e.e, 0), Object.entries(e.trend).map(([n, up]) => `${n}d ${up ? "↑" : "↓"}`).join(" · ")),
+            tile(`${EQ[a]} 10d vol`, pct(e.vol10), e.spike ? `spike: above ${pct(e.trigger)} trigger` : `no spike · trigger ${pct(e.trigger)}`)];
+  };
   $("riskTiles").replaceChildren(
-    tile("S&P exposure", pct(rk.e_spx, 0), Object.entries(rk.trend).map(([n, up]) => `${n}d ${up ? "↑" : "↓"}`).join(" · ")),
-    tile("S&P 10d vol", pct(rk.vol10), rk.spike ? `spike: above ${pct(rk.trigger)} trigger` : `no spike · trigger ${pct(rk.trigger)}`),
+    ...eqTile("spx"), ...eqTile("r2k"),
     tile("Leverage", `${rk.leverage}x`, `targets S&P vol ${pct(rk.target_vol)}`),
     tile(`Vol at ${rk.leverage}x`, pct(st.lev.vol), `since 1987 · last 3M ${pct(rk.rv_lev)}`)
   );
   $("levX").textContent = rk.leverage;
-  $("volNow").textContent = `${pct(rk.vol10)} vs ${pct(rk.trigger)}`;
+  const e = rk.eq[state.eq], pre = state.eq === "spx" ? "" : "r2k_";
+  $("volTitle").textContent = `${EQ[state.eq]} 10-day volatility vs spike trigger`;
+  $("volNow").textContent = `${pct(e.vol10)} vs ${pct(e.trigger)}`;
   $("rvNow").textContent = `3M ${pct(rk.rv_lev)} vs ${pct(rk.target_vol)}`;
   const i0 = firstIndex(S.t, startFor(state.risk, p.asof));
   const t = S.t.slice(i0), cut = v => v.slice(i0);
   draw("volChart", { type: "line", data: { datasets: [
-    line("Trigger (2 × 1y vol)", pts(t, cut(S.vol_trig)), C.neg, { borderDash: [5, 4] }),
-    line("10-day vol", pts(t, cut(S.vol10)), C.text, { borderWidth: 1.6 })
+    line("Trigger (2 × 1y vol)", pts(t, cut(S[pre + "vol_trig"])), C.neg, { borderDash: [5, 4] }),
+    line("10-day vol", pts(t, cut(S[pre + "vol10"])), C.text, { borderWidth: 1.6 })
   ] }, options: baseOpts({ bands: false, ymin: 0, yfmt: v => pct(+v, 0) }) });
   draw("expChart", { type: "line", data: { datasets: [
-    line("S&P exposure", pts(t, cut(S.e_spx)), C.assets[0], { stepped: true, fill: "origin", backgroundColor: alpha(C.assets[0], 0.25), borderWidth: 1.2 })
+    line("S&P exposure", pts(t, cut(S.e_spx)), C.assets[0], { stepped: true, borderWidth: 1.6 }),
+    line("Russell exposure", pts(t, cut(S.e_r2k)), C.assets[1], { stepped: true, borderWidth: 1.6, borderDash: [4, 2] })
   ] }, options: baseOpts({ bands: false, ymin: 0, ymax: 1, yfmt: v => pct(+v, 0) }) });
   const tv = t.length ? [{ x: t[0], y: rk.target_vol }, { x: t[t.length - 1], y: rk.target_vol }] : [];
   draw("rvChart", { type: "line", data: { datasets: [
@@ -387,6 +397,7 @@ async function load() {
   pills("perfPills", PERF_RANGES, "perf", renderPerf);
   pills("indPills", IND_RANGES, "ind", renderIndicators);
   pills("riskPills", IND_RANGES, "risk", renderRisk);
+  pills("eqPills", ["S&P", "Russell"], "eqName", () => { state.eq = state.eqName === "S&P" ? "spx" : "r2k"; renderRisk(); });
   pills("levPills", ["1x", `${D.pulse.risk.leverage}x`], "lev", renderPerf);
   pills("assetPills", IND_RANGES, "asset", renderAssets);
   if (!$("macroPills").querySelector("button")) renderMacroPills();

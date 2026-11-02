@@ -17,7 +17,9 @@ PRICES = {'spx': ('ES=F', lambda x: x),            # S&P 500 e-mini front month
           'gold': ('GC=F', lambda x: x),           # COMEX gold front month
           'jpy': ('JPY=X', lambda x: 100 / x),     # USD per 100 JPY
           'chf': ('CHF=X', lambda x: 1 / x),       # USD per CHF
-          'aud': ('AUD=X', lambda x: x)}           # AUD per USD
+          'aud': ('AUD=X', lambda x: x),           # AUD per USD
+          'r2k': ('RTY=F', lambda x: x),           # Russell 2000 e-mini front month
+          'wti': ('CL=F', lambda x: x.where(x > 0))}   # WTI crude front month (drop non-positive prints)
 LOOKBACK_DAYS = 60
 FFILL_LIMIT = 5
 RELINK_ROWS = 5            # re-pull the last few price rows each run (late or partial bars)
@@ -99,12 +101,19 @@ def update_daily(fred):
     new = daily.date > last
     old_dates = daily.date[~new]
     anchor = old_dates.iloc[-RELINK_ROWS - 1]       # re-link from a few rows back to fix late or partial bars
-    redo = daily.date > anchor
     for col, q in quotes.items():                   # chain-link: level = anchor level x Yahoo return since anchor
-        base = q[q.index <= anchor]
+        q = q.dropna()
+        if col not in daily:
+            daily[col] = np.nan
+        have = daily.date[daily[col].notna() & (daily.date <= anchor)]
+        if not len(have):
+            continue
+        a = have.iloc[-1]                            # a column that fell behind links from its own last value
+        redo = daily.date > a
+        base = q[q.index <= a]
         if not len(base):
             continue
-        factor = daily.loc[daily.date == anchor, col].iloc[0] / base.iloc[-1]
+        factor = daily.loc[daily.date == a, col].iloc[0] / base.iloc[-1]
         fresh = q.reindex(daily.date[redo]).values * factor
         cur = daily.loc[redo, col].values
         daily.loc[redo, col] = np.where(np.isfinite(fresh), fresh, cur)

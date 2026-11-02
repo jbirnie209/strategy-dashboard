@@ -23,8 +23,9 @@ def main():
     daily = pd.read_csv(DATA / 'daily.csv', parse_dates=['date'])
     fred = {p.stem: pd.read_csv(p, parse_dates=['date']).set_index('date')['value'] for p in (DATA / 'fred').glob('*.csv')}
     d = M.prepare(daily)
-    base = M.run(d, **M.REC)                   # regimes, trend flags and the plain 200d rule (comparison)
-    res = M.live(d, base)                      # live rule 'A + B'
+    base = M.run(d, **M.REC)                   # regimes and trend flags
+    res = M.live(d, base)                      # live rule: 5 assets, S&P and Russell sized by 'A + B'
+    prev = M.live(d, base, M.ALLOC_3)          # previous 3-asset rule, for comparison
     z_hy, z_sl, dep = M.depth(d, res)
     F = M.features(d, res, fred)
     P = M.regime_probs(F, pd.Series(res.regime.values, index=res.date), start='1980-01-01')
@@ -34,7 +35,7 @@ def main():
     b6040 = (0.6 * d.r_spx + 0.4 * d.r_ty_tr)[m].values
     bspx = d.r_spx[m].values + c                 # futures return + cash = S&P total return proxy
     lev = M.lever(r, c)
-    rec = base.ret[m].values
+    rec = prev.ret[m].values
     rets = {'strat': r, 'lev': lev, 'rec': rec, 'b6040': b6040, 'spx': bspx}
     eq = {k: np.cumprod(1 + v) for k, v in rets.items()}
 
@@ -67,16 +68,18 @@ def main():
         'dd': rnd((eq['strat'] / np.maximum.accumulate(eq['strat']) - 1)[k], 4),
         'lev': rnd(eq['lev'][k], 5), 'rec': rnd(eq['rec'][k], 5),
         'dd_lev': rnd((eq['lev'] / np.maximum.accumulate(eq['lev']) - 1)[k], 4),
-        'e_spx': rnd(full.e_spx.values[k], 3), 'vol10': rnd(full.vol10.values[k], 4),
-        'vol_trig': rnd(M.VOL_SPIKE[2] * full.vol252.values[k], 4),
+        'e_spx': rnd(full.e_spx.values[k], 3), 'e_r2k': rnd(full.e_r2k.values[k], 3),
+        'vol10': rnd(full.spx_vol10.values[k], 4), 'vol_trig': rnd(M.VOL_SPIKE[2] * full.spx_vol252.values[k], 4),
+        'r2k_vol10': rnd(full.r2k_vol10.values[k], 4), 'r2k_vol_trig': rnd(M.VOL_SPIKE[2] * full.r2k_vol252.values[k], 4),
         'rv_lev': rnd(pd.Series(lev).rolling(63).std().values[k] * np.sqrt(261), 4),
         'regime': [int(x) for x in reg_code[k]],
         'hy': rnd(dd.hy[k], 3), 'hy_med': rnd(full.hy_thr[k], 3),
         'slope': rnd(dd.slope[k], 3), 'sl_med': rnd(full.sl_thr[k], 3),
         'z_hy': rnd(z_hy[m][k], 3), 'z_sl': rnd(z_sl[m][k], 3),
     }
-    assets = [('spx', 'S&P 500', d.spx, 200), ('ty', '10Y Treasury TR', d.ty_tr_idx * 100, 200),
-              ('gold', 'Gold', d.gold, 200), ('jpy', 'JPY/USD', d.jpy, FX_MA),
+    assets = [('spx', 'S&P 500', d.spx, 200), ('r2k', 'Russell 2000', d.r2k, 200),
+              ('ty', '10Y Treasury TR', d.ty_tr_idx * 100, 200), ('gold', 'Gold', d.gold, 200),
+              ('wti', 'WTI crude', d.wti, 200), ('jpy', 'JPY/USD', d.jpy, FX_MA),
               ('chf', 'CHF/USD', d.chf, FX_MA), ('aud', 'USD/AUD', d.aud, FX_MA)]
     asset_meta = []
     for key, name, px, n in assets:
@@ -86,8 +89,8 @@ def main():
         p_last, ma_last = float(px.iloc[-1]), float(mv.iloc[-1])
         meta = {'key': key, 'name': name, 'ma_len': n, 'price': round(p_last, 5), 'ma': round(ma_last, 5),
                 'dist': round(p_last / ma_last - 1, 4), 'above': bool(p_last > ma_last), 'in_rules': n == 200}
-        if key in ('spx', 'ty', 'gold'):
-            meta['confirmed_up'] = bool(res['up_' + ('ty' if key == 'ty' else key)].iloc[-1])
+        if key in M.LIVE_ASSETS:
+            meta['confirmed_up'] = bool(res[f'{key}_up200' if key in ('spx', 'r2k') else 'up_' + key].iloc[-1])
         asset_meta.append(meta)
 
     # ---- weekly: probabilities and macro indicators
@@ -122,7 +125,7 @@ def main():
         by_regime.append({'r': rg, 'share': round(float(w.mean()), 3),
                           'ann': round(float(np.prod(1 + r[w]) ** (261 / max(w.sum(), 1)) - 1), 4),
                           'ann_6040': round(float(np.prod(1 + b6040[w]) ** (261 / max(w.sum(), 1)) - 1), 4)})
-    tw = full[['tw_spx', 'tw_ty', 'tw_gold', 'tw_cash']].round(4)
+    tw = full[['tw_' + a for a in M.LIVE_ASSETS] + ['tw_cash']].round(4)
     chg = np.where((tw.diff().abs().sum(axis=1) > 1e-9).values)[0]
     changes = [{'d': dates.iloc[i].strftime('%Y-%m-%d'), 'r': full.regime.iloc[i],
                 'w': [float(x) for x in tw.iloc[i]]} for i in chg[-8:][::-1]]
@@ -139,7 +142,7 @@ def main():
             n += 1
         pending = {'regime': L.raw, 'days': n, 'needed': M.REC['regime_confirm']}
     pl = P.dropna().iloc[-1]
-    blend = np.array([M.BASE_ALLOC[g] for g in M.REGS]).T @ pl.values
+    blend = np.array([[M.LIVE_ALLOC[g].get(a, 0) for a in M.LIVE_ASSETS] for g in M.REGS]).T @ pl.values
     pulse = {
         'asof': last.strftime('%Y-%m-%d'), 'regime': L.regime, 'since': since, 'pending': pending,
         'hy': round(float(dd.hy.iloc[-1]), 3), 'hy_med': round(float(L.hy_thr), 3),
@@ -147,12 +150,14 @@ def main():
         'z_hy': round(float(z_hy[-1]), 2), 'z_sl': round(float(z_sl[-1]), 2), 'depth': round(float(dep[-1]), 2),
         'probs': {'date': pl.name.strftime('%Y-%m-%d'), **{g: round(float(pl[g]), 3) for g in M.REGS}},
         'blend': [round(float(x), 3) for x in blend],
-        'target': [float(L.tw_spx), float(L.tw_ty), float(L.tw_gold), float(L.tw_cash)],
+        'target': [float(L['tw_' + a]) for a in M.LIVE_ASSETS] + [float(L.tw_cash)],
+        'alloc': M.LIVE_ALLOC,
         'tbill': round(float(d.tbill.iloc[-1]), 2), 'rebalance_today': bool(changes and changes[0]['d'] == last.strftime('%Y-%m-%d')),
         'last_change': changes[0]['d'] if changes else None,
-        'risk': {'trend': {str(n): bool(L[f'spx_up{n}']) for n in M.SPX_MAS}, 'e_spx': round(float(L.e_spx), 3),
-                 'vol10': round(float(L.vol10), 4), 'vol252': round(float(L.vol252), 4),
-                 'trigger': round(float(M.VOL_SPIKE[2] * L.vol252), 4), 'spike': bool(L.spike),
+        'risk': {'eq': {a: {'trend': {str(n): bool(L[f'{a}_up{n}']) for n in M.SPX_MAS}, 'e': round(float(L['e_' + a]), 3),
+                            'vol10': round(float(L[a + '_vol10']), 4), 'vol252': round(float(L[a + '_vol252']), 4),
+                            'trigger': round(float(M.VOL_SPIKE[2] * L[a + '_vol252']), 4), 'spike': bool(L[a + '_spike'])}
+                        for a in ('spx', 'r2k')},
                  'leverage': M.LEVERAGE, 'target_vol': round(float(stats['Max']['spx']['vol']), 4),
                  'rv_lev': round(float(np.std(lev[-63:]) * np.sqrt(261)), 4)},
     }

@@ -12,6 +12,11 @@ BASE_ALLOC = {'Growth': (0.8, 0.0, 0.2), 'Inflation': (0.6, 0.0, 0.4), 'Slowdown
 REC = dict(ma_len=200, ma_confirm=5, regime_confirm=5, trend_out='10y')
 SPX_MAS = (50, 100, 200)        # live rule 'A + B': S&P exposure = share of these confirmed trends ...
 VOL_SPIKE = (10, 252, 2.0)      # ... halved when 10d realised vol > 2 x 1y realised vol (same day)
+LIVE_ASSETS = ['spx', 'r2k', 'ty', 'gold', 'wti']
+LIVE_ALLOC = {'Growth': {'spx': .4, 'r2k': .4, 'gold': .2}, 'Inflation': {'spx': .5, 'gold': .3, 'wti': .2},
+              'Slowdown': {'ty': 1.0}}
+GROWTH_NO_R2K = {'spx': .8, 'gold': .2}          # Growth before the Russell has a year of history (Sep 2002)
+ALLOC_3 = {r: dict(zip(ASSETS, w)) for r, w in BASE_ALLOC.items()}   # previous 3-asset rule, for comparison
 LEVERAGE = 2.1                  # levered view: cash + 2.1 x (strategy - cash), matches S&P vol since 1987
 PROB_COLS = ['hy_gap', 'slope_gap', 'slope_chg13', 'y1_chg26', 'sahm']   # best set from the Mahalanobis study
 SAHM_LAG_DAYS = 40                                                      # Sahm/UNRATE released ~5 weeks after month start
@@ -24,8 +29,10 @@ def prepare(daily):
     out['dgs10'] = out['dgs10'].ffill()
     gap = out['date'].diff().dt.days.fillna(1).values
     out['r_cash'] = np.r_[0, out['tbill'].values[:-1] / 100 * gap[1:] / 365]   # prior day's T-bill rate
-    for a in ['spx', 'gold']:
-        out['r_' + a] = out[a].pct_change(fill_method=None).fillna(0)
+    for a in ['spx', 'gold', 'r2k', 'wti']:
+        if a in out:
+            out[a] = out[a].ffill()
+            out['r_' + a] = out[a].pct_change(fill_method=None).fillna(0)
     y = out['dgs10'].values / 100
     yp = np.r_[np.nan, y[:-1]]
     with np.errstate(invalid='ignore', divide='ignore'):
@@ -114,34 +121,54 @@ def run(d, ma_len=200, ma_confirm=5, regime_confirm=5, trend_out='10y', alloc=No
     return res
 
 
-def live(d, base, ma_confirm=5):
-    """Live rule 'A + B' on the regimes of `base` (a run() result). Fractional S&P exposure; gold and 10Y keep the
-    200d confirmed flag. Removed S&P/gold weight parks in the 10Y if its flag is on, else cash. Same maths as
-    the leverage study's custom.run."""
-    fl = {n: trend_flags(d['spx'], n, ma_confirm).astype(float) for n in SPX_MAS}
-    trend = sum(fl.values()) / len(SPX_MAS)
+def ab_exposure(price, ret, ma_confirm=5):
+    """Rule 'A + B': share of confirmed 50/100/200d trends, halved when 10d vol > 2 x 1y vol (same day)."""
+    fl = {n: trend_flags(price, n, ma_confirm).astype(float) for n in SPX_MAS}
     n_s, n_l, k = VOL_SPIKE
-    v_s = d['r_spx'].rolling(n_s).std().values * np.sqrt(261)
-    v_l = d['r_spx'].rolling(n_l).std().values * np.sqrt(261)
+    v_s = ret.rolling(n_s).std().values * np.sqrt(261)
+    v_l = ret.rolling(n_l).std().values * np.sqrt(261)
     spike = v_s > k * v_l
-    e_spx = trend * np.where(spike, 0.5, 1)
-    e_ty, e_gold = base['up_ty'].values.astype(float), base['up_gold'].values.astype(float)
-    A = np.array([BASE_ALLOC[r] for r in base['regime']])
-    W = A * np.c_[e_spx, e_ty, e_gold]
-    W[:, 1] += (A.sum(1) - W.sum(1)) * e_ty
-    Wl = np.r_[np.zeros((1, 3)), W[:-1]]
+    return sum(fl.values()) / len(SPX_MAS) * np.where(spike, 0.5, 1), fl, v_s, v_l, spike
+
+
+def live(d, base, alloc=LIVE_ALLOC, ma_confirm=5):
+    """Live rule on the regimes of `base` (a run() result). S&P and Russell sized by ab_exposure; gold, WTI and
+    10Y keep the 200d confirmed flag. Removed weight parks in the 10Y if its flag is on, else cash.
+    Same maths as the asset study's multi.run."""
+    A = LIVE_ASSETS
+    X, extra = {}, {}
+    for a in ('spx', 'r2k'):
+        e, fl, v_s, v_l, spike = ab_exposure(d[a], d['r_' + a], ma_confirm)
+        X[a] = e
+        extra[a] = dict(fl=fl, vol10=v_s, vol252=v_l, spike=spike)
+    X['ty'] = base['up_ty'].values.astype(float)
+    X['gold'] = base['up_gold'].values.astype(float)
+    X['wti'] = trend_flags(d['wti'], 200, ma_confirm).astype(float)
+    has_r2k = (d['r2k'].notna().cumsum() > VOL_SPIKE[1]).values
+    T = np.array([[(GROWTH_NO_R2K if (r == 'Growth' and not h and 'r2k' in alloc[r]) else alloc[r]).get(a, 0) for a in A]
+                  for r, h in zip(base['regime'], has_r2k)])
+    Xm = np.c_[[X[a] for a in A]].T
+    W = T * Xm
+    k = A.index('ty')
+    W[:, k] += (T - W).sum(1) * Xm[:, k]
+    Wl = np.r_[np.zeros((1, len(A))), W[:-1]]
     rc = d['r_cash'].values
-    R = np.c_[d['r_spx'], d['r_ty_tr'] - rc, d['r_gold']]
+    R = np.c_[[d['r_ty_tr'].values - rc if a == 'ty' else d['r_' + a].values for a in A]].T
+    funded = [i for i, a in enumerate(A) if a != 'ty']
     res = base.copy()
-    res['ret'] = (Wl * R).sum(1) + rc * np.maximum(1 - Wl[:, [0, 2]].sum(1), 0)
+    res['ret'] = (Wl * R).sum(1) + rc * np.maximum(1 - Wl[:, funded].sum(1), 0)
     res['reb'] = np.r_[False, np.any(np.abs(np.diff(Wl, axis=0)) > 1e-9, axis=1)]
-    for i, a in enumerate(ASSETS):
+    for i, a in enumerate(A):
         res['tw_' + a] = W[:, i]
         res['w_' + a] = Wl[:, i]
+        res['e_' + a] = Xm[:, i]
     res['tw_cash'] = 1 - W.sum(1)
-    for n in SPX_MAS:
-        res[f'spx_up{n}'] = fl[n].astype(bool)
-    res['e_spx'], res['vol10'], res['vol252'], res['spike'] = e_spx, v_s, v_l, spike
+    for a in ('spx', 'r2k'):
+        for n in SPX_MAS:
+            res[f'{a}_up{n}'] = extra[a]['fl'][n].astype(bool)
+        for f in ('vol10', 'vol252', 'spike'):
+            res[f'{a}_{f}'] = extra[a][f]
+    res['up_wti'] = X['wti'].astype(bool)
     return res
 
 

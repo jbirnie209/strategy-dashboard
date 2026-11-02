@@ -1,6 +1,6 @@
-"""One-off: seed data/ from the strategy workbook (v4 layout).
+"""One-off: seed data/ from the strategy workbook (v6 layout).
 
-Usage: python pipeline/seed.py path/to/Countercyclical_Investment_Strategy_Data_v4.xlsm
+Usage: python pipeline/seed.py path/to/Countercyclical_Investment_Strategy_Data_v6.xlsm
 After this the nightly job (update.py) keeps data/ current on its own.
 """
 import sys, pathlib, openpyxl, pandas as pd
@@ -9,7 +9,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 DATA = ROOT / 'data'
 CONSO_COLS = {'date': 'date', 'HY Spread': 'hy', '10Yr Minus 1Yr': 'slope', '10Y Yield': 'dgs10',
               '3 Month T-Bill': 'tbill', 'S&P500': 'spx', 'Gold Fut': 'gold',
-              'JPY/USD': 'jpy', 'CHF/USD': 'chf', 'USD/AUD': 'aud'}
+              'JPY/USD': 'jpy', 'CHF/USD': 'chf', 'USD/AUD': 'aud', 'Russell 2000': 'r2k', 'WTI': 'wti'}
 
 
 def main(path):

@@ -5,7 +5,7 @@
   const COLOURS = [
     ["Page", [["--bg", "Background"], ["--card", "Cards"], ["--tile", "Tiles"], ["--border", "Borders"], ["--text", "Text"], ["--muted", "Secondary text"]]],
     ["Regimes", [["--growth", "Growth"], ["--inflation", "Inflation"], ["--slowdown", "Slowdown"]]],
-    ["Allocation", [["--a-spx", "S&P 500"], ["--a-ty", "10Y Treasury"], ["--a-gold", "Gold"], ["--a-cash", "Cash"]]],
+    ["Allocation", [["--a-spx", "S&P 500"], ["--a-r2k", "Russell 2000"], ["--a-ty", "10Y Treasury"], ["--a-gold", "Gold"], ["--a-wti", "WTI crude"], ["--a-cash", "Cash"]]],
     ["Charts", [["--neg", "Drawdown"]]]
   ];
   const SLIDERS = [["--band", "Regime shading strength", 0.04, 0.5, 0.01], ["--probfill", "Probability chart fill", 0.15, 1, 0.05]];

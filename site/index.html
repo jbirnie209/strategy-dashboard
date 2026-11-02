@@ -78,18 +78,20 @@
         </details>
       </section>
 
-      <section class="card wide" id="riskCard" data-card="S&amp;P exposure and volatility">
-        <div class="row"><span class="lbl">S&amp;P exposure and volatility</span><span class="muted xs" id="riskAsOf"></span></div>
+      <section class="card wide" id="riskCard" data-card="Equity exposure and volatility">
+        <div class="row"><span class="lbl">Equity exposure and volatility</span><span class="muted xs" id="riskAsOf"></span></div>
         <div class="tiles4" id="riskTiles" data-block="Exposure figures"></div>
         <div class="pills" id="riskPills"></div>
-        <div class="stack" data-block="S&amp;P volatility chart">
-          <div class="row sub"><span>S&amp;P 10-day volatility vs spike trigger</span><span class="num xs" id="volNow"></span></div>
-          <div class="chartBox"><canvas id="volChart" aria-label="S&amp;P 10-day realised volatility and the spike trigger at twice 1-year volatility" role="img"></canvas></div>
-          <p class="muted xxs">S&amp;P exposure halves on any day the 10-day line closes above the trigger (2 × 1-year volatility).</p>
+        <div class="stack" data-block="Equity volatility chart">
+          <div class="pills" id="eqPills"></div>
+          <div class="row sub"><span id="volTitle">S&amp;P 10-day volatility vs spike trigger</span><span class="num xs" id="volNow"></span></div>
+          <div class="chartBox"><canvas id="volChart" aria-label="10-day realised volatility and the spike trigger at twice 1-year volatility" role="img"></canvas></div>
+          <p class="muted xxs">Exposure halves on any day the 10-day line closes above the trigger (2 × 1-year volatility).</p>
         </div>
-        <div class="stack" data-block="S&amp;P exposure chart">
-          <div class="row sub"><span>S&amp;P exposure kept</span><span class="muted xxs">thirds from 50/100/200d trends, halved on spikes</span></div>
-          <div class="chartBox short"><canvas id="expChart" aria-label="Share of S&amp;P weight kept over time" role="img"></canvas></div>
+        <div class="stack" data-block="Equity exposure chart">
+          <div class="row sub"><span>Exposure kept</span><span class="muted xxs">thirds from 50/100/200d trends, halved on spikes</span></div>
+          <div class="legend xs muted"><span><i class="sw" style="background:var(--a-spx)"></i>S&amp;P 500</span><span><i class="sw" style="background:var(--a-r2k)"></i>Russell 2000 (dashed)</span></div>
+          <div class="chartBox short"><canvas id="expChart" aria-label="Share of S&amp;P and Russell weight kept over time" role="img"></canvas></div>
         </div>
         <div class="stack" data-block="Realised vs target volatility">
           <div class="row sub"><span>Strategy volatility at <span id="levX">2.1</span>x vs target</span><span class="num xs" id="rvNow"></span></div>
@@ -160,7 +162,7 @@
     </main>
 
     <footer class="muted xxs" id="foot">
-      Backtest from 1987 with the live rules: S&amp;P kept in thirds by its 50/100/200-day trends and halved on volatility spikes; 10Y and gold on 200-day trends; 5-day confirmation; trend-out to 10Y. Levered view = cash + 2.1 × (strategy − cash). Not investment advice.
+      Backtest from 1987 with the live rules. Growth 40 S&amp;P / 40 Russell 2000 / 20 gold (80 S&amp;P / 20 gold before the Russell has a year of history, Sep 2002); Inflation 50 S&amp;P / 30 gold / 20 WTI; Slowdown 100% 10Y. S&amp;P and Russell kept in thirds by their 50/100/200-day trends and halved on volatility spikes; 10Y, gold and WTI on 200-day trends; 5-day confirmation; trend-out to 10Y. Levered view = cash + 2.1 × (strategy − cash). Not investment advice.
       <div class="themes" id="themes" aria-label="Colour theme"></div>
     </footer>
   </div>

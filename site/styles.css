@@ -3,7 +3,7 @@
   --bg:#EFE9DF; --card:#FBF8F2; --tile:#F3EEE5; --border:#E0D7C8; --pillb:#CFC4B2; --pilltext:#4A4238;
   --text:#2B2620; --muted:#6B6257; --faint:#958B7E; --grid:rgba(120,110,95,.16);
   --growth:#3F7D4E; --inflation:#B5651D; --slowdown:#2F6690;
-  --a-spx:#7B4B94; --a-ty:#4A7C8C; --a-gold:#A87C1E; --a-cash:#958B7E;
+  --a-spx:#7B4B94; --a-r2k:#B5527A; --a-ty:#4A7C8C; --a-gold:#A87C1E; --a-wti:#7A5A44; --a-cash:#958B7E;
   --neg:#B23A3A; --band:.22; --probfill:.5;
 }
 :root[data-theme="navy"]{
@@ -11,7 +11,7 @@
   --bg:#0A1628; --card:#10223D; --tile:#0A1628; --border:#1F3557; --pillb:#2A4570; --pilltext:#C9D6EA;
   --text:#EAF1FB; --muted:#9DB0CC; --faint:#6F84A6; --grid:rgba(200,215,240,.10);
   --growth:#6CCB8A; --inflation:#FFB74D; --slowdown:#4FC3F7;
-  --a-spx:#CE93D8; --a-ty:#80CBC4; --a-gold:#FFD54F; --a-cash:#6F84A6;
+  --a-spx:#CE93D8; --a-r2k:#F48FB1; --a-ty:#80CBC4; --a-gold:#FFD54F; --a-wti:#BCAAA4; --a-cash:#6F84A6;
   --neg:#FF8A80; --band:.26; --probfill:.55;
 }
 *{box-sizing:border-box}
