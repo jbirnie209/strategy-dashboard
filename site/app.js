@@ -253,12 +253,19 @@ function renderTables() {
     at.append(el("tr", {}, el("td", {}, String(a.y) + (a.y === new Date(D.pulse.asof).getUTCFullYear() ? " YTD" : "")), td(a.strat), td(a.lev), td(a.b6040), td(a.spx)));
   }
   const rt = $("regimeTbl");
-  rt.replaceChildren(el("tr", {}, el("th", {}, "Regime"), el("th", {}, "Time"), el("th", {}, "Strategy p.a."), el("th", {}, "60/40 p.a.")));
-  for (const r of D.by_regime) {
-    rt.append(el("tr", {},
-      el("td", {}, el("i", { class: "sw", style: `background:${C.reg[REGS.indexOf(r.r)]}` }), r.r),
-      el("td", {}, pct(r.share, 0)), el("td", {}, pct(r.ann)), el("td", {}, pct(r.ann_6040))));
-  }
+  const B = D.by_regime;
+  rt.replaceChildren(el("tr", {}, el("th", {}, "p.a."), ...B.map(r =>
+    el("th", {}, el("i", { class: "sw", style: `background:${C.reg[REGS.indexOf(r.r)]}` }), r.r))));
+  const row = (label, f, cls = "") => {
+    const tr = el("tr", { class: cls }, el("td", {}, label));
+    for (const r of B) { const v = f(r); tr.append(el("td", { class: v <= -0.0005 && cls !== "share" ? "neg" : "" }, pct(Math.abs(v) < 0.0005 ? 0 : v, cls === "share" ? 0 : 1))); }
+    rt.append(tr);
+  };
+  row("Time in regime", r => r.share, "share");
+  row("Strategy", r => r.ann);
+  row(`Strategy ${D.pulse.risk.leverage}x`, r => r.ann_lev);
+  row("60/40", r => r.ann_6040);
+  ASSET_KEYS.slice(0, 5).forEach((k, i) => row(ASSET_NAMES[i], r => r.assets[k], i ? "" : "sep"));
 }
 
 // ---------- equity exposure and volatility ----------
@@ -376,7 +383,7 @@ function renderAssets() {
       draw("assetChart", { type: "line", data: { datasets: [
         line(`${a.ma_len}d MA`, pts(t, S[a.key + "_ma"].slice(i0)), C.muted, { borderDash: [5, 4] }),
         line(a.name, pts(t, S[a.key].slice(i0)), C.text, { borderWidth: 2 })
-      ] }, options: baseOpts({ log: ["10Y", "Max"].includes(state.asset) && a.key !== "aud" && a.key !== "jpy" && a.key !== "chf",
+      ] }, options: baseOpts({ log: ["10Y", "Max"].includes(state.asset) ,
                                yfmt: v => (+v).toLocaleString("en-US", { maximumFractionDigits: a.price > 100 ? 0 : 3 }) }) });
     }
   }

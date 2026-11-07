@@ -7,7 +7,6 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 DATA, SITE = ROOT / 'data', ROOT / 'site'
 START = pd.Timestamp('1987-01-02')          # first day of the backtest (needs 200d MA and 10y medians)
 DAILY_YEARS = 3                             # full daily detail for recent years, Fridays before that
-FX_MA = 120
 MACRO = {'sahm': 'SAHMREALTIME', 'unrate': 'UNRATE', 'nfci': 'NFCI', 'claims': 'ICSA', 'real10': 'DFII10'}
 
 
@@ -79,8 +78,7 @@ def main():
     }
     assets = [('spx', 'S&P 500', d.spx, 200), ('r2k', 'Russell 2000', d.r2k, 200),
               ('ty', '10Y Treasury TR', d.ty_tr_idx * 100, 200), ('gold', 'Gold', d.gold, 200),
-              ('wti', 'WTI crude', d.wti, 200), ('jpy', 'JPY/USD', d.jpy, FX_MA),
-              ('chf', 'CHF/USD', d.chf, FX_MA), ('aud', 'USD/AUD', d.aud, FX_MA)]
+              ('wti', 'WTI crude', d.wti, 200)]
     asset_meta = []
     for key, name, px, n in assets:
         mv = ma(px, n)
@@ -119,12 +117,16 @@ def main():
     annual = [{'y': int(y), **{nm: round(float(np.prod(1 + rr[yr == y]) - 1), 4) for nm, rr in rets.items()}}
               for y in np.unique(yr)]
     held = np.concatenate([full.regime.values[:1], full.regime.values[:-1]])
+    # each asset as the strategy holds it: futures price returns, 10Y total return minus cash
+    leg = {'spx': dd.r_spx, 'r2k': dd.r_r2k.where(dd.r2k.notna()), 'ty': dd.r_ty_tr - dd.r_cash,
+           'gold': dd.r_gold, 'wti': dd.r_wti.where(dd.wti.notna())}
+    ann = lambda x: round(float(np.prod(1 + x) ** (261 / len(x)) - 1), 4) if len(x) else None
     by_regime = []
     for rg in M.REGS:
         w = held == rg
-        by_regime.append({'r': rg, 'share': round(float(w.mean()), 3),
-                          'ann': round(float(np.prod(1 + r[w]) ** (261 / max(w.sum(), 1)) - 1), 4),
-                          'ann_6040': round(float(np.prod(1 + b6040[w]) ** (261 / max(w.sum(), 1)) - 1), 4)})
+        by_regime.append({'r': rg, 'share': round(float(w.mean()), 3), 'ann': ann(r[w]), 'ann_lev': ann(lev[w]),
+                          'ann_6040': ann(b6040[w]),
+                          'assets': {a: ann(x.values[w & x.notna().values]) for a, x in leg.items()}})
     tw = full[['tw_' + a for a in M.LIVE_ASSETS] + ['tw_cash']].round(4)
     chg = np.where((tw.diff().abs().sum(axis=1) > 1e-9).values)[0]
     changes = [{'d': dates.iloc[i].strftime('%Y-%m-%d'), 'r': full.regime.iloc[i],
