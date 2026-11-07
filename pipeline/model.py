@@ -13,7 +13,7 @@ REC = dict(ma_len=200, ma_confirm=5, regime_confirm=5, trend_out='10y')
 SPX_MAS = (50, 100, 200)        # live rule 'A + B': S&P exposure = share of these confirmed trends ...
 VOL_SPIKE = (10, 252, 2.0)      # ... halved when 10d realised vol > 2 x 1y realised vol (same day)
 LIVE_ASSETS = ['spx', 'r2k', 'ty', 'gold', 'wti']
-LIVE_ALLOC = {'Growth': {'spx': .4, 'r2k': .4, 'gold': .2}, 'Inflation': {'spx': .5, 'gold': .3, 'wti': .2},
+LIVE_ALLOC = {'Growth': {'spx': .4, 'r2k': .4, 'gold': .2}, 'Inflation': {'spx': .6, 'gold': .2, 'wti': .2},
               'Slowdown': {'ty': 1.0}}
 GROWTH_NO_R2K = {'spx': .8, 'gold': .2}          # Growth before the Russell has a year of history (Sep 2002)
 ALLOC_3 = {r: dict(zip(ASSETS, w)) for r, w in BASE_ALLOC.items()}   # previous 3-asset rule, for comparison
