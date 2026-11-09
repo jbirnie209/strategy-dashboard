@@ -121,12 +121,17 @@ def main():
     leg = {'spx': dd.r_spx, 'r2k': dd.r_r2k.where(dd.r2k.notna()), 'ty': dd.r_ty_tr - dd.r_cash,
            'gold': dd.r_gold, 'wti': dd.r_wti.where(dd.wti.notna())}
     ann = lambda x: round(float(np.prod(1 + x) ** (261 / len(x)) - 1), 4) if len(x) else None
+    # strategy return split by source: held weight x leg return, plus T-bill on the unfunded part (adds up exactly)
+    contrib = {a: full['w_' + a].values * leg[a].fillna(0).values for a in M.LIVE_ASSETS}
+    funded = sum(full['w_' + a].values for a in M.LIVE_ASSETS if a != 'ty')
+    contrib['cash'] = dd.r_cash.values * np.maximum(1 - funded, 0)
     by_regime = []
     for rg in M.REGS:
         w = held == rg
         by_regime.append({'r': rg, 'share': round(float(w.mean()), 3), 'ann': ann(r[w]), 'ann_lev': ann(lev[w]),
                           'ann_6040': ann(b6040[w]),
-                          'assets': {a: ann(x.values[w & x.notna().values]) for a, x in leg.items()}})
+                          'assets': {a: ann(x.values[w & x.notna().values]) for a, x in leg.items()},
+                          'contrib': {k: round(float(v[w].mean() * 261), 4) for k, v in contrib.items()}})
     tw = full[['tw_' + a for a in M.LIVE_ASSETS] + ['tw_cash']].round(4)
     chg = np.where((tw.diff().abs().sum(axis=1) > 1e-9).values)[0]
     changes = [{'d': dates.iloc[i].strftime('%Y-%m-%d'), 'r': full.regime.iloc[i],

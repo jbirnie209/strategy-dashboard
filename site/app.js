@@ -258,14 +258,19 @@ function renderTables() {
     el("th", {}, el("i", { class: "sw", style: `background:${C.reg[REGS.indexOf(r.r)]}` }), r.r))));
   const row = (label, f, cls = "") => {
     const tr = el("tr", { class: cls }, el("td", {}, label));
-    for (const r of B) { const v = f(r); tr.append(el("td", { class: v <= -0.0005 && cls !== "share" ? "neg" : "" }, pct(Math.abs(v) < 0.0005 ? 0 : v, cls === "share" ? 0 : 1))); }
+    for (const r of B) { const v = f(r); tr.append(el("td", { class: (v <= -0.0005 && cls !== "share" ? "neg" : "") + (cls === "total" ? " strong" : "") }, pct(Math.abs(v) < 0.0005 ? 0 : v, cls === "share" ? 0 : 1))); }
     rt.append(tr);
   };
   row("Time in regime", r => r.share, "share");
   row("Strategy", r => r.ann);
   row(`Strategy ${D.pulse.risk.leverage}x`, r => r.ann_lev);
   row("60/40", r => r.ann_6040);
-  ASSET_KEYS.slice(0, 5).forEach((k, i) => row(ASSET_NAMES[i], r => r.assets[k], i ? "" : "sep"));
+  const head = txt => rt.append(el("tr", { class: "sep" }, el("td", { colspan: "4", class: "tblHead" }, txt)));
+  head("Buy and hold, while each regime held");
+  ASSET_KEYS.slice(0, 5).forEach((k, i) => row(ASSET_NAMES[i], r => r.assets[k]));
+  head("Contribution to the strategy (1x, % a year)");
+  ASSET_KEYS.forEach((k, i) => row(ASSET_NAMES[i], r => r.contrib[k ?? "cash"]));
+  row("Total", r => Object.values(r.contrib).reduce((x, y) => x + y, 0), "total");
 }
 
 // ---------- equity exposure and volatility ----------

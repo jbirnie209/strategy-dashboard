@@ -116,3 +116,5 @@ body.cOpen{padding-bottom:78vh}
 .tbl tr.sep td{border-top:2px solid var(--pillb)}
 .tbl th .sw{margin-right:4px}
 #regimeTbl td:first-child{font-family:Inter,system-ui,sans-serif}
+.tbl td.tblHead{font-family:Inter,system-ui,sans-serif;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);text-align:left;padding-top:12px}
+.tbl td.strong{font-weight:600}
