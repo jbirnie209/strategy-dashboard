@@ -84,6 +84,9 @@ def main():
         mv = ma(px, n)
         series[key] = rnd(px[m].values[k], 5)
         series[key + '_ma'] = rnd(mv[m].values[k], 5)
+        if key in ('spx', 'r2k'):                    # shorter trends used for equity exposure
+            for n2 in M.SPX_MAS[:-1]:
+                series[f'{key}_ma{n2}'] = rnd(ma(px, n2)[m].values[k], 5)
         p_last, ma_last = float(px.iloc[-1]), float(mv.iloc[-1])
         meta = {'key': key, 'name': name, 'ma_len': n, 'price': round(p_last, 5), 'ma': round(ma_last, 5),
                 'dist': round(p_last / ma_last - 1, 4), 'above': bool(p_last > ma_last), 'in_rules': n == 200}

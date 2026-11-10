@@ -383,12 +383,20 @@ function renderAssets() {
     row.addEventListener("click", () => { state.openAsset = state.openAsset === a.key ? null : a.key; renderAssets(); });
     list.append(row);
     if (state.openAsset === a.key) {
-      const box = el("div", { class: "assetChart" }, el("div", { class: "chartBox" }, el("canvas", { id: "assetChart", role: "img", "aria-label": `${a.name} with ${a.ma_len}-day moving average` })));
+      const leg = ["spx", "r2k"].includes(a.key) ? el("div", { class: "legend xs muted" },
+        el("span", {}, el("i", { class: "sw", style: `background:${C.text}` }), a.name),
+        el("span", {}, el("i", { class: "sw", style: `background:${C.reg[1]}` }), "50d MA"),
+        el("span", {}, el("i", { class: "sw", style: `background:${C.assets[0]}` }), "100d MA"),
+        el("span", {}, el("i", { class: "sw", style: `background:${C.muted}` }), "200d MA")) : "";
+      const box = el("div", { class: "assetChart" }, leg, el("div", { class: "chartBox" }, el("canvas", { id: "assetChart", role: "img", "aria-label": `${a.name} with ${a.ma_len}-day moving average` })));
       list.append(box);
       const S = D.series;
       const i0 = firstIndex(S.t, startFor(state.asset, D.pulse.asof));
       const t = S.t.slice(i0);
+      const extra = [50, 100].filter(n => S[`${a.key}_ma${n}`]).map((n, j) =>
+        line(`${n}d MA`, pts(t, S[`${a.key}_ma${n}`].slice(i0)), [C.reg[1], C.assets[0]][j], { borderDash: [2, 3], borderWidth: 1.2 }));
       draw("assetChart", { type: "line", data: { datasets: [
+        ...extra,
         line(`${a.ma_len}d MA`, pts(t, S[a.key + "_ma"].slice(i0)), C.muted, { borderDash: [5, 4] }),
         line(a.name, pts(t, S[a.key].slice(i0)), C.text, { borderWidth: 2 })
       ] }, options: baseOpts({ log: ["10Y", "Max"].includes(state.asset) ,
