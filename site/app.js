@@ -20,7 +20,7 @@ const SHORT = ["S&P", "Russell", "10Y", "Gold", "WTI", "Cash"];
 const EQ = { spx: "S&P", r2k: "Russell" };
 const mix = (w, f = pct) => w.map((x, i) => x > 0 ? `${SHORT[i]} ${f(x, 0)}` : null).filter(Boolean).join(" · ");
 const PERF_RANGES = ["1M", "3M", "YTD", "1Y", "3Y", "5Y", "10Y", "Max"];
-const IND_RANGES = ["1Y", "3Y", "5Y", "10Y", "Max"];
+const IND_RANGES = ["1M", "3M", "1Y", "3Y", "5Y", "10Y", "Max"];
 const MACRO = {
   sahm: { name: "Sahm rule (real-time)", unit: "pp", ref: 0.5 },
   unrate: { name: "Unemployment rate", unit: "%" },
@@ -360,9 +360,11 @@ function renderMacro() {
   $("macroBox").hidden = !k;
   if (!k) return;
   const m = MACRO[k], s = D.macro[k];
-  const i0 = firstIndex(s.t, startFor(state.ind, D.pulse.asof));
+  // monthly and weekly series need a longer window than 1M/3M to show a line
+  const short = { "1M": k === "sahm" || k === "unrate" ? "1Y" : "3M", "3M": k === "sahm" || k === "unrate" ? "1Y" : "3M" }[state.ind];
+  const i0 = firstIndex(s.t, startFor(short || state.ind, D.pulse.asof));
   const t = s.t.slice(i0), v = s.v.slice(i0);
-  $("macroTitle").textContent = m.name;
+  $("macroTitle").textContent = m.name + (short && short !== state.ind ? ` (last ${short === "1Y" ? "year" : "3 months"})` : "");
   $("macroNow").textContent = `${(+s.v[s.v.length - 1]).toFixed(k === "claims" ? 0 : 2)}${m.unit} · ${fmtDate(s.last)}`;
   const ds = [line(m.name, pts(t, v), C.text, { borderWidth: 2 })];
   if (m.ref != null) ds.unshift(line("Reference", t.length ? [{ x: t[0], y: m.ref }, { x: t[t.length - 1], y: m.ref }] : [], C.faint, { borderDash: [3, 3], borderWidth: 1 }));
