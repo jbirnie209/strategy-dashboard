@@ -130,9 +130,10 @@ function renderPulse() {
     $("pending").textContent = `Raw signal reads ${p.pending.regime}: day ${p.pending.days} of ${p.pending.needed} needed to confirm a switch.`;
   }
   $("hyVal").textContent = p.hy.toFixed(2) + "%";
-  $("hyCmp").textContent = `${p.hy > p.hy_med ? "above" : "below"} ${p.hy_med.toFixed(2)}% median`;
+  const obs = k => p.obs && p.obs[k] && p.obs[k] < p.asof ? ` · FRED to ${fmtDate(p.obs[k]).replace(/ \d{4}$/, "")}` : "";
+  $("hyCmp").textContent = `${p.hy > p.hy_med ? "above" : "below"} ${p.hy_med.toFixed(2)}% median${obs("hy")}`;
   $("slVal").textContent = p.slope.toFixed(2);
-  $("slCmp").textContent = `${p.slope < p.sl_med ? "below" : "above"} ${p.sl_med.toFixed(2)} median`;
+  $("slCmp").textContent = `${p.slope < p.sl_med ? "below" : "above"} ${p.sl_med.toFixed(2)} median${obs("slope")}`;
 
   const bar = $("probBar"), leg = $("probLegend");
   bar.replaceChildren(); leg.replaceChildren();

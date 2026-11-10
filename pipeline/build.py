@@ -154,6 +154,8 @@ def main():
         'asof': last.strftime('%Y-%m-%d'), 'regime': L.regime, 'since': since, 'pending': pending,
         'hy': round(float(dd.hy.iloc[-1]), 3), 'hy_med': round(float(L.hy_thr), 3),
         'slope': round(float(dd.slope.iloc[-1]), 3), 'sl_med': round(float(L.sl_thr), 3),
+        'obs': {k: fred[sid].index.max().strftime('%Y-%m-%d') for k, sid in
+                (('hy', 'BAMLH0A0HYM2'), ('slope', 'DGS10'), ('tbill', 'DTB3')) if sid in fred},
         'z_hy': round(float(z_hy[-1]), 2), 'z_sl': round(float(z_sl[-1]), 2), 'depth': round(float(dep[-1]), 2),
         'probs': {'date': pl.name.strftime('%Y-%m-%d'), **{g: round(float(pl[g]), 3) for g in M.REGS}},
         'blend': [round(float(x), 3) for x in blend],
