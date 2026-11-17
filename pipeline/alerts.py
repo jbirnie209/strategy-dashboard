@@ -32,6 +32,7 @@ def main(prev_path, new_path, out_path):
         title = title or f"Regime signal: {pn['regime']} (day {pn['days']} of {pn['needed']})"
         items.append(f"Raw signal now reads **{pn['regime']}**: day {pn['days']} of {pn['needed']} needed to confirm.")
     elif po and not pn and new['regime'] == old['regime']:
+        title = title or f"{po['regime']} signal faded"
         items.append(f"The {po['regime']} signal faded before confirming; regime stays {new['regime']}.")
     if any(abs(a - b) > 0.005 for a, b in zip(new['target'], old.get('target', []))) or len(new['target']) != len(old.get('target', [])):
         title = title or 'Allocation change'

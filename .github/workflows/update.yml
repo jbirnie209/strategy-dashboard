@@ -2,8 +2,11 @@ name: Update data and deploy
 
 on:
   schedule:
-    - cron: "30 22 * * 1-5"   # after the US close: new prices
-    - cron: "30 13 * * 2-6"   # next morning: FRED publishes the prior day's yields and spreads
+    # GitHub starts scheduled runs late (often hours) and sometimes skips one, so there are backups.
+    - cron: "17 22 * * 1-5"   # after the US futures close: new prices
+    - cron: "43 0 * * 2-6"    # backup for the close
+    - cron: "17 15 * * 1-5"   # US morning: FRED publishes the prior day's yields and spreads (Mon = Friday's)
+    - cron: "43 18 * * 1-5"   # backup for FRED
   workflow_dispatch:
     inputs:
       test_alert:
@@ -45,6 +48,7 @@ jobs:
         run: cd pipeline && python build.py
       - name: Phone alert on notable changes (opens an issue; the GitHub app notifies the owner)
         if: github.event_name != 'push'
+        continue-on-error: true               # an alert problem must never hold back the data update
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TEST_ALERT: ${{ inputs.test_alert }}
