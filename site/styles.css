@@ -118,3 +118,8 @@ body.cOpen{padding-bottom:78vh}
 #regimeTbl td:first-child{font-family:Inter,system-ui,sans-serif}
 .tbl td.tblHead{font-family:Inter,system-ui,sans-serif;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);text-align:left;padding-top:12px}
 .tbl td.strong{font-weight:600}
+html,body{overscroll-behavior-y:contain}
+.pullTip{position:fixed;left:50%;top:calc(env(safe-area-inset-top) + 6px);margin-left:-70px;width:140px;text-align:center;font-size:12px;color:var(--muted);background:var(--card);border:1px solid var(--border);border-radius:999px;padding:6px 0;transform:translateY(-60px);opacity:.0;transition:opacity .15s;z-index:40;pointer-events:none}
+.pullTip[style*="translateY"]{opacity:.6}.pullTip.ready{opacity:1;color:var(--text)}
+@keyframes spin{to{transform:rotate(360deg)}}
+.pill.icon.spin svg{animation:spin 1s linear infinite}

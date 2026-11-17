@@ -442,7 +442,50 @@ function renderThemeToggle() {
 renderThemeToggle();
 const meta = document.querySelector('meta[name="theme-color"]');
 if (meta) meta.setAttribute("content", css("--bg"));
-$("refresh").addEventListener("click", load);
+// ---------- refresh: button or pull-down ----------
+// With window.REFRESH_URL set (layout.js), ask the Worker to start a data update, then wait for it to publish.
+let refreshing = false;
+async function refreshAll() {
+  if (refreshing) return;
+  refreshing = true;
+  $("refresh").classList.add("spin");
+  const before = D && D.generated;
+  try {
+    if (window.REFRESH_URL) {
+      let started = false;
+      try { started = (await (await fetch(window.REFRESH_URL, { method: "POST" })).json()).started; } catch (e) {}
+      $("stamp").textContent = started ? "Fetching new data… about 2 minutes" : "An update ran recently, checking for it…";
+      for (let i = 0; i < 24; i++) {                     // up to 4 minutes
+        await new Promise(r => setTimeout(r, 10000));
+        try {
+          const j = await (await fetch(`data.json?t=${Date.now()}`, { cache: "no-store" })).json();
+          if (j.generated !== before) break;
+        } catch (e) {}
+      }
+    }
+    await load();
+  } finally {
+    refreshing = false;
+    $("refresh").classList.remove("spin");
+  }
+}
+$("refresh").addEventListener("click", refreshAll);
+(() => {                                                 // pull down at the top of the page to refresh
+  const tip = el("div", { class: "pullTip", "aria-hidden": "true" }, "Release to refresh");
+  document.body.prepend(tip);
+  let y0 = null, dy = 0;
+  addEventListener("touchstart", e => { y0 = scrollY <= 0 && !document.body.classList.contains("cOpen") ? e.touches[0].clientY : null; dy = 0; }, { passive: true });
+  addEventListener("touchmove", e => {
+    if (y0 == null) return;
+    dy = e.touches[0].clientY - y0;
+    tip.style.transform = `translateY(${Math.min(Math.max(dy, 0), 90) - 40}px)`;
+    tip.classList.toggle("ready", dy > 80);
+  }, { passive: true });
+  addEventListener("touchend", () => {
+    if (y0 != null && dy > 80) refreshAll();
+    y0 = null; tip.style.transform = ""; tip.classList.remove("ready");
+  });
+})();
 // called by customise.js after colours change: re-read them and redraw everything
 window.redrawAll = () => {
   readColors();
