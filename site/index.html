@@ -160,6 +160,18 @@
         <div class="assetList" id="assetList"></div>
         <p class="muted xs">Tap an asset to chart it with its moving average and regime bands.</p>
       </section>
+
+      <section class="card wide" id="checkCard" data-card="Daily execution checklist">
+        <div class="row"><span class="lbl">Daily execution checklist</span><span class="muted xs" id="checkAsOf"></span></div>
+        <p class="verdict" id="verdict"></p>
+        <table class="tbl checks" id="checkTbl"></table>
+        <details data-block="Contract sizing">
+          <summary>Contract sizing at target</summary>
+          <label class="navRow">Account NAV (US$) <input id="navIn" type="number" inputmode="decimal" min="0" step="1000" placeholder="e.g. 250000" /></label>
+          <table class="tbl" id="sizeTbl"></table>
+          <p class="muted xxs">Contracts = <span id="levTxt">2.1</span> × NAV × target weight ÷ contract notional, rounded to whole contracts, at the latest close. ZN notional is approximate (6% coupon 10-year priced at the 10Y yield). NAV is saved on this device only.</p>
+        </details>
+      </section>
     </main>
 
     <footer class="muted xxs" id="foot">

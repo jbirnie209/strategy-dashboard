@@ -2,6 +2,7 @@
 import json, pathlib, datetime as dt
 import numpy as np, pandas as pd
 import model as M
+import checklist
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 DATA, SITE = ROOT / 'data', ROOT / 'site'
@@ -175,7 +176,8 @@ def main():
     }
     out = {'generated': dt.datetime.now(dt.timezone.utc).strftime('%Y-%m-%dT%H:%MZ'),
            'pulse': pulse, 'assets': asset_meta, 'stats': stats, 'series': series, 'weekly': weekly,
-           'macro': macro, 'spans': spans, 'annual': annual, 'by_regime': by_regime, 'changes': changes}
+           'macro': macro, 'spans': spans, 'annual': annual, 'by_regime': by_regime, 'changes': changes,
+           'checklist': checklist.build(d, res, fred, pulse['asof'])}
     SITE.mkdir(exist_ok=True)
     (SITE / 'data.json').write_text(json.dumps(out, separators=(',', ':')))
     print('data.json', round((SITE / 'data.json').stat().st_size / 1024), 'KB; as of', pulse['asof'], pulse['regime'])

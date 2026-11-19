@@ -405,6 +405,39 @@ function renderAssets() {
   }
 }
 
+// ---------- daily execution checklist ----------
+function renderChecklist() {
+  const c = D.checklist;
+  if (!c) return;
+  $("checkAsOf").textContent = `after the ${fmtDate(c.asof)} close`;
+  $("verdict").textContent = c.verdict;
+  $("verdict").classList.toggle("act", c.verdict !== "No action today");
+  const t = $("checkTbl");
+  t.replaceChildren(el("tr", {}, el("th", {}, "Check"), el("th", {}, "Y/N"), el("th", {}, "Detail")));
+  for (const r of c.rows) {
+    const yn = r.yes == null ? "–" : r.yes ? "Y" : "N";
+    const show = r.yes == null || r.yes || r.attention || r.check === "Data current";
+    t.append(el("tr", { class: r.attention ? "hit" : "" },
+      el("td", {}, r.check), el("td", {}, yn), el("td", { class: r.yes ? "" : "dim" }, show ? r.detail : "")));
+  }
+  $("levTxt").textContent = c.leverage;
+  const nav = $("navIn");
+  try { if (!nav.value) nav.value = localStorage.getItem("nav") || ""; } catch (e) {}
+  const draw = () => {
+    try { localStorage.setItem("nav", nav.value); } catch (e) {}
+    const N = parseFloat(nav.value) || 0, st = $("sizeTbl");
+    st.replaceChildren(el("tr", {}, el("th", {}, "Leg"), el("th", {}, `Target (${c.leverage}x)`), el("th", {}, "Per contract"), el("th", {}, "Contracts")));
+    for (const [k, z] of Object.entries(c.sizing)) {
+      const w = z.w * c.leverage;
+      st.append(el("tr", {}, el("td", {}, `${SHORT[ASSET_KEYS.indexOf(k)]} · ${z.code}`), el("td", {}, pct(w, 0)),
+        el("td", {}, "$" + Math.round(z.notional).toLocaleString("en-US")),
+        el("td", {}, N ? String(Math.round(N * w / z.notional)) : "—")));
+    }
+  };
+  nav.oninput = draw;
+  draw();
+}
+
 // ---------- boot ----------
 async function load() {
   try {
@@ -429,6 +462,7 @@ async function load() {
   renderRisk();
   renderIndicators();
   renderAssets();
+  renderChecklist();
 }
 function renderThemeToggle() {
   const navy = document.documentElement.getAttribute("data-theme") === "navy";
@@ -491,7 +525,7 @@ window.redrawAll = () => {
   readColors();
   if (meta) meta.setAttribute("content", css("--bg"));
   if (!D) return;
-  renderPulse(); renderPerf(); renderTables(); renderRisk(); renderIndicators(); renderAssets();
+  renderPulse(); renderPerf(); renderTables(); renderRisk(); renderIndicators(); renderAssets(); renderChecklist();
 };
 const cBtn = el("button", { class: "themeBtn", type: "button" }, "Customise colours and layout");
 cBtn.addEventListener("click", () => window.openCustomise());

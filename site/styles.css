@@ -123,3 +123,16 @@ html,body{overscroll-behavior-y:contain}
 .pullTip[style*="translateY"]{opacity:.6}.pullTip.ready{opacity:1;color:var(--text)}
 @keyframes spin{to{transform:rotate(360deg)}}
 .pill.icon.spin svg{animation:spin 1s linear infinite}
+.verdict{margin:0;font-weight:600;font-size:15px;padding:10px 12px;border-radius:10px;background:var(--tile)}
+.verdict.act{background:color-mix(in srgb,var(--inflation) 22%,var(--card));color:var(--text)}
+.tbl.checks td{font-family:Inter,system-ui,sans-serif;text-align:left;vertical-align:top}
+.tbl.checks td:nth-child(2){text-align:center;font-family:'JetBrains Mono',monospace;font-weight:600;width:36px}
+.tbl.checks th:nth-child(2){text-align:center}
+.tbl.checks th{text-align:left}
+.tbl.checks td:first-child{width:38%}
+.tbl.checks tr.hit td{background:color-mix(in srgb,var(--inflation) 14%,var(--card))}
+.tbl.checks td.dim{color:var(--muted)}
+.navRow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px;margin:8px 0}
+.navRow input{font:14px 'JetBrains Mono',monospace;background:var(--tile);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:8px;width:160px}
+.tbl.checks th,#sizeTbl th{position:static}
+#sizeTbl td:first-child{font-family:Inter,system-ui,sans-serif}
