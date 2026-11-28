@@ -3,6 +3,7 @@
 Each row: check, yes (bool, None for the manual reminder), detail, attention (highlight: Y rows, or stale data).
 """
 import numpy as np, pandas as pd
+from pandas.tseries.holiday import USFederalHolidayCalendar
 import model as M
 
 NAMES = {'spx': 'S&P', 'r2k': 'Russell', 'ty': '10Y', 'gold': 'Gold', 'wti': 'WTI', 'cash': 'Cash'}
@@ -25,7 +26,10 @@ def build(d, res, fred, asof):
     rows = []
 
     # 1. data current: prices moved on the last trading day; FRED no older than the prior trading day
-    prev_day = res.date.iloc[-2]
+    # FRED posts each day's value the next business day, and Treasury series skip US bond-market holidays,
+    # so the newest value we can expect is from the bond-market business day before the last trading day
+    bday = pd.offsets.CustomBusinessDay(calendar=USFederalHolidayCalendar())
+    prev_day = res.date.iloc[-1] - bday
     stale = [NAMES[a] for a in ('spx', 'r2k', 'gold', 'wti') if d[a].iloc[-1] == d[a].iloc[-2]]
     for nm, sid in (('HY spread', 'BAMLH0A0HYM2'), ('10Y yield', 'DGS10'), ('T-bill', 'DTB3')):
         if sid in fred and fred[sid].index.max() < prev_day:
